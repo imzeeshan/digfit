@@ -124,18 +124,36 @@ class UserMealViewSet(viewsets.ModelViewSet):
 
 
 class MealPlanViewSet(viewsets.ModelViewSet):
-    """Meal plans — admin sees all; regular users see only their own."""
+    """Meal plans — admin sees all; regular users see only their own.
+
+    Filtering (admin only):
+        GET /api/meal-plans/?user=<user_id>
+
+    Lookup by user (admin only):
+        GET /api/meal-plans/by-user/<user_id>/
+    """
     serializer_class = MealPlanSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        qs = MealPlan.objects.select_related('user')
+        qs = MealPlan.objects.select_related('user').prefetch_related('entries')
         if self.request.user.is_staff:
-            return qs.all()
+            user_id = self.request.query_params.get('user')
+            if user_id:
+                qs = qs.filter(user_id=user_id)
+            return qs
         return qs.filter(user=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    @action(detail=False, methods=['get'], url_path=r'by-user/(?P<user_id>\d+)',
+            permission_classes=[IsAdminUser])
+    def by_user(self, request, user_id=None):
+        """Return all meal plans for a specific user (admin only)."""
+        plans = MealPlan.objects.for_user(user_id)
+        serializer = self.get_serializer(plans, many=True)
+        return Response(serializer.data)
 
 
 class InterventionViewSet(viewsets.ModelViewSet):

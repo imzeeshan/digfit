@@ -144,6 +144,15 @@ class Weight(models.Model):
         return reverse('dashboard:weight_detail', kwargs={'pk': self.pk})
 
 
+class MealPlanManager(models.Manager):
+    def for_user(self, user_id, *, include_entries=True):
+        """Return all meal plans for a given user ID with optional entry prefetch."""
+        qs = self.select_related('user').filter(user_id=user_id)
+        if include_entries:
+            qs = qs.prefetch_related('entries')
+        return qs
+
+
 class MealPlan(models.Model):
     DIETARY_CHOICES = [
         ('none', 'No Preference'),
@@ -178,6 +187,8 @@ class MealPlan(models.Model):
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = MealPlanManager()
 
     class Meta:
         verbose_name = 'Meal Plan'

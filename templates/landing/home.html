@@ -1,0 +1,374 @@
+{% extends "base.html" %}
+
+{% block title %}DigFit — Your AI-Powered Nutrition Coach{% endblock %}
+
+{% block extra_head %}
+<link nonce="{{ csp_nonce }}" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&display=swap">
+<style nonce="{{ csp_nonce }}">
+    .font-accent { font-family: 'Playfair Display', serif; font-style: italic; }
+</style>
+{% endblock %}
+
+{% block navbar %}
+<nav class="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-green-100">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16">
+            <div class="flex items-center gap-10">
+                <a href="{% url 'landing:home' %}" class="flex items-center gap-2">
+                    <div class="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
+                        <i class="fa-solid fa-leaf text-white text-sm"></i>
+                    </div>
+                    <span class="text-lg font-semibold text-green-900">DigFit</span>
+                </a>
+                <div class="hidden md:flex items-center gap-8">
+                    <a href="#features" class="text-sm text-gray-600 hover:text-green-700 transition-colors">Features</a>
+                    <a href="#how-it-works" class="text-sm text-gray-600 hover:text-green-700 transition-colors">How It Works</a>
+                    <a href="#pricing" class="text-sm text-gray-600 hover:text-green-700 transition-colors">Pricing</a>
+                </div>
+            </div>
+            <div class="hidden md:flex items-center gap-4">
+                {% if user.is_authenticated %}
+                    <a href="{% url 'dashboard:home' %}" class="text-sm text-gray-600 hover:text-green-700 transition-colors">Dashboard</a>
+                    <a href="{% url 'account_logout' %}" class="text-sm text-gray-600 hover:text-green-700 transition-colors">Log out</a>
+                    <a href="{% url 'dashboard:home' %}" class="w-8 h-8 bg-green-600 flex items-center justify-center text-white text-xs font-medium rounded-full">
+                        {{ user.email|first|upper }}
+                    </a>
+                {% else %}
+                    <a href="{% url 'account_login' %}" class="text-sm text-gray-600 hover:text-green-700 transition-colors">Log in</a>
+                    <a href="{% url 'account_signup' %}" class="text-sm px-5 py-2 bg-green-600 text-white rounded-full hover:bg-green-700 transition-colors font-medium">Get Started</a>
+                {% endif %}
+            </div>
+            <a href="#landing-menu" class="flex items-center md:hidden text-gray-600 hover:text-green-700">
+                <i class="fa-solid fa-bars text-lg"></i>
+            </a>
+        </div>
+    </div>
+</nav>
+
+<!-- Mobile menu -->
+<div id="landing-menu" class="fixed inset-0 z-50 md:hidden [&:not(:target)]:hidden">
+    <a href="#_" class="fixed inset-0 bg-black/40 cursor-pointer"></a>
+    <div class="fixed inset-y-0 right-0 w-72 bg-white flex flex-col shadow-xl">
+        <div class="h-16 flex items-center justify-between px-5 border-b border-green-100">
+            <span class="text-sm font-semibold text-green-900">Menu</span>
+            <a href="#_" class="text-gray-400 hover:text-green-700 p-1"><i class="fa-solid fa-xmark text-lg"></i></a>
+        </div>
+        <nav class="flex-1 py-4 px-4 space-y-1 overflow-y-auto">
+            <a href="#features" class="block py-2.5 text-sm text-gray-600 hover:text-green-700">Features</a>
+            <a href="#how-it-works" class="block py-2.5 text-sm text-gray-600 hover:text-green-700">How It Works</a>
+            <a href="#pricing" class="block py-2.5 text-sm text-gray-600 hover:text-green-700">Pricing</a>
+            <div class="border-t border-green-100 my-3"></div>
+            {% if user.is_authenticated %}
+                <a href="{% url 'dashboard:home' %}" class="block py-2.5 text-sm text-gray-600 hover:text-green-700">Dashboard</a>
+                <a href="{% url 'account_logout' %}" class="block py-2.5 text-sm text-gray-600 hover:text-green-700">Log out</a>
+            {% else %}
+                <a href="{% url 'account_login' %}" class="block py-2.5 text-sm text-gray-600 hover:text-green-700">Log in</a>
+                <a href="{% url 'account_signup' %}" class="block py-2.5 text-sm text-green-700 font-medium">Sign up</a>
+            {% endif %}
+        </nav>
+    </div>
+</div>
+{% endblock navbar %}
+
+{% block content %}
+<!-- Hero -->
+<section class="relative overflow-hidden bg-gradient-to-br from-amber-50 via-green-50 to-emerald-100">
+    <div class="absolute top-10 right-10 w-72 h-72 bg-green-200/40 rounded-full blur-3xl"></div>
+    <div class="absolute bottom-20 right-1/3 w-48 h-48 bg-emerald-200/30 rounded-full blur-2xl"></div>
+    <div class="absolute top-1/2 left-10 w-32 h-32 bg-amber-200/20 rounded-full blur-2xl"></div>
+
+    <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            <!-- Left -->
+            <div>
+                <div class="inline-flex items-center gap-2 bg-green-100 text-green-800 px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider mb-6">
+                    <i class="fa-solid fa-seedling"></i>
+                    AI-Powered Nutrition
+                </div>
+                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-green-950 leading-[1.1]">
+                    Eat well,<br>
+                    <span class="font-accent text-green-700">effortlessly.</span>
+                </h1>
+                <p class="mt-6 text-lg text-gray-600 max-w-lg leading-relaxed">
+                    DigFit plans your meals, logs every bite, and gently guides you — building lasting habits without the guilt trip.
+                </p>
+                <div class="mt-8 flex flex-col sm:flex-row gap-3">
+                    <a href="{% url 'account_signup' %}" class="px-8 py-3.5 bg-green-600 text-white rounded-full text-sm font-semibold hover:bg-green-700 transition-colors text-center shadow-lg shadow-green-600/20">
+                        Start Free Trial
+                    </a>
+                    <a href="#features" class="px-8 py-3.5 bg-white text-green-800 rounded-full text-sm font-semibold border border-green-200 hover:border-green-400 transition-colors text-center">
+                        Learn More
+                    </a>
+                </div>
+                <div class="mt-5 flex items-center gap-4 text-xs text-gray-500">
+                    <span class="flex items-center gap-1"><i class="fa-solid fa-check text-green-600"></i> No credit card required</span>
+                    <span class="flex items-center gap-1"><i class="fa-solid fa-check text-green-600"></i> 14-day trial</span>
+                </div>
+
+                <div class="mt-8 flex items-center gap-3">
+                    <div class="flex -space-x-2">
+                        <div class="w-8 h-8 rounded-full bg-green-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-green-800">A</div>
+                        <div class="w-8 h-8 rounded-full bg-emerald-300 border-2 border-white flex items-center justify-center text-[10px] font-bold text-green-900">M</div>
+                        <div class="w-8 h-8 rounded-full bg-amber-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-amber-800">S</div>
+                        <div class="w-8 h-8 rounded-full bg-green-400 border-2 border-white flex items-center justify-center text-[10px] font-bold text-green-900">K</div>
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        <span class="flex items-center gap-1">
+                            <i class="fa-solid fa-star text-amber-400 text-[10px]"></i>
+                            <i class="fa-solid fa-star text-amber-400 text-[10px]"></i>
+                            <i class="fa-solid fa-star text-amber-400 text-[10px]"></i>
+                            <i class="fa-solid fa-star text-amber-400 text-[10px]"></i>
+                            <i class="fa-solid fa-star text-amber-400 text-[10px]"></i>
+                        </span>
+                        <span class="text-xs text-gray-500">Over <strong>10,000+</strong> happy fit users</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right -->
+            <div class="relative flex justify-center lg:justify-end">
+                <div class="relative">
+                    <div class="absolute -inset-4 bg-green-200/30 rounded-3xl blur-xl"></div>
+                    <img src="https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=560&h=560&fit=crop"
+                         alt="Fresh healthy bowl" loading="lazy"
+                         class="relative w-80 h-80 sm:w-96 sm:h-96 object-cover rounded-3xl shadow-2xl">
+                    <div class="absolute -top-3 -right-3 bg-white rounded-2xl shadow-lg px-4 py-3 border border-green-100">
+                        <p class="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Daily Score</p>
+                        <p class="text-2xl font-bold text-green-600 leading-tight">92</p>
+                        <p class="text-[10px] text-gray-400">Excellent</p>
+                    </div>
+                    <div class="absolute -bottom-3 -left-3 bg-white rounded-2xl shadow-lg px-4 py-3 border border-green-100">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 bg-green-100 rounded-full flex items-center justify-center">
+                                <i class="fa-solid fa-fire text-green-600 text-xs"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs font-semibold text-gray-800">1,840 cal</p>
+                                <p class="text-[10px] text-gray-400">Today's intake</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features -->
+<section id="features" class="py-20 lg:py-28 bg-amber-50/50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center max-w-2xl mx-auto">
+            <h2 class="text-3xl lg:text-4xl font-bold text-green-950">
+                A coach in your pocket,<br>
+                <span class="font-accent text-green-700">never on your case.</span>
+            </h2>
+            <p class="mt-4 text-gray-600 leading-relaxed">
+                Right-sized meal planning, tracking, and gentle nudges — without making every meal feel like an exam.
+            </p>
+        </div>
+
+        <div class="mt-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {% for feature in features %}
+            <div class="bg-white rounded-2xl p-8 border border-green-100 hover:shadow-lg hover:shadow-green-100/50 transition-all duration-300">
+                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-5">
+                    <i class="fa-solid fa-{{ feature.icon }} text-green-600 text-lg"></i>
+                </div>
+                <h3 class="text-base font-semibold text-green-900">{{ feature.title }}</h3>
+                <p class="mt-2 text-sm text-gray-500 leading-relaxed">{{ feature.description }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- How It Works -->
+<section id="how-it-works" class="py-20 lg:py-28 bg-gradient-to-b from-green-50 to-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <!-- Phone Mockup -->
+            <div class="flex justify-center">
+                <div class="relative">
+                    <div class="absolute -inset-6 bg-green-200/20 rounded-[3rem] blur-2xl"></div>
+                    <div class="relative w-64 sm:w-72 bg-white rounded-[2.5rem] border-[6px] border-green-900 shadow-2xl overflow-hidden">
+                        <div class="h-6 bg-green-900 flex justify-center items-end pb-1">
+                            <div class="w-16 h-1 bg-green-700 rounded-full"></div>
+                        </div>
+                        <div class="p-4 space-y-3 bg-gradient-to-b from-green-50 to-white min-h-[420px]">
+                            <div class="flex items-center justify-between">
+                                <p class="text-xs font-bold text-green-900">Today's Plan</p>
+                                <div class="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                                    <i class="fa-solid fa-bell text-green-600 text-[8px]"></i>
+                                </div>
+                            </div>
+                            <div class="bg-white rounded-xl p-3 border border-green-100 shadow-sm">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center text-lg">🥑</div>
+                                    <div>
+                                        <p class="text-[10px] font-semibold text-gray-800">Breakfast</p>
+                                        <p class="text-[8px] text-gray-400">Avocado toast · 380 cal</p>
+                                    </div>
+                                    <i class="fa-solid fa-check-circle text-green-500 text-xs ml-auto"></i>
+                                </div>
+                            </div>
+                            <div class="bg-white rounded-xl p-3 border border-green-100 shadow-sm">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center text-lg">🥗</div>
+                                    <div>
+                                        <p class="text-[10px] font-semibold text-gray-800">Lunch</p>
+                                        <p class="text-[8px] text-gray-400">Quinoa salad bowl · 520 cal</p>
+                                    </div>
+                                    <i class="fa-solid fa-check-circle text-green-500 text-xs ml-auto"></i>
+                                </div>
+                            </div>
+                            <div class="bg-white rounded-xl p-3 border border-green-100 shadow-sm">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center text-lg">🍗</div>
+                                    <div>
+                                        <p class="text-[10px] font-semibold text-gray-800">Dinner</p>
+                                        <p class="text-[8px] text-gray-400">Grilled chicken · 610 cal</p>
+                                    </div>
+                                    <div class="w-4 h-4 border-2 border-green-200 rounded-full ml-auto"></div>
+                                </div>
+                            </div>
+                            <div class="bg-green-600 rounded-xl p-3 mt-2">
+                                <div class="flex items-center justify-between text-white">
+                                    <div>
+                                        <p class="text-[10px] font-semibold">Daily progress</p>
+                                        <p class="text-[8px] opacity-80">1,510 / 2,100 cal</p>
+                                    </div>
+                                    <p class="text-lg font-bold">72%</p>
+                                </div>
+                                <div class="mt-2 h-1.5 bg-green-500/40 rounded-full">
+                                    <div class="h-1.5 bg-white rounded-full" style="width: 72%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Steps -->
+            <div>
+                <h2 class="text-3xl lg:text-4xl font-bold text-green-950">
+                    Four small steps,<br>
+                    <span class="font-accent text-green-700">a healthier you.</span>
+                </h2>
+                <div class="mt-10 space-y-8">
+                    {% for step in steps %}
+                    <div class="flex gap-5 items-start">
+                        <div class="flex-shrink-0 w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                            {{ step.number }}
+                        </div>
+                        <div>
+                            <h3 class="text-base font-semibold text-green-900">{{ step.title }}</h3>
+                            <p class="mt-1 text-sm text-gray-500 leading-relaxed">{{ step.description }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Pricing -->
+<section id="pricing" class="py-20 lg:py-28 bg-white">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center">
+            <h2 class="text-3xl lg:text-4xl font-bold text-green-950">
+                Simple <span class="font-accent text-green-700">pricing.</span>
+            </h2>
+            <p class="mt-3 text-gray-500">Cancel anytime. Your data is always yours.</p>
+        </div>
+
+        <div class="mt-14 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+            <!-- Starter -->
+            <div class="bg-white rounded-2xl border border-green-100 p-8 hover:shadow-lg transition-shadow">
+                <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Starter</p>
+                <p class="mt-1 text-sm text-gray-400">For getting your bearings.</p>
+                <p class="mt-5"><span class="text-4xl font-bold text-green-950">Free</span></p>
+                <ul class="mt-6 space-y-3 text-sm text-gray-600">
+                    <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500 text-xs"></i> Meal logging</li>
+                    <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500 text-xs"></i> Basic stats</li>
+                    <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500 text-xs"></i> Daily targets</li>
+                </ul>
+                <a href="{% url 'account_signup' %}" class="mt-8 block w-full py-3 border border-green-200 text-center text-sm font-semibold text-green-700 rounded-full hover:bg-green-50 transition-colors">
+                    Get Started
+                </a>
+            </div>
+
+            <!-- Plus (Most Popular) -->
+            <div class="bg-green-700 rounded-2xl p-8 text-white shadow-xl shadow-green-700/20 relative">
+                <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-400 text-green-950 text-[10px] font-bold uppercase tracking-wider px-4 py-1 rounded-full">Most Popular</div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-green-200">Plus</p>
+                <p class="mt-1 text-sm text-green-300">For building real habits.</p>
+                <p class="mt-5"><span class="text-4xl font-bold text-white">$9</span><span class="text-green-200 text-sm ml-1">/mo</span></p>
+                <ul class="mt-6 space-y-3 text-sm text-green-100">
+                    <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-300 text-xs"></i> AI meal planning</li>
+                    <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-300 text-xs"></i> Smart grocery lists</li>
+                    <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-300 text-xs"></i> Macro tracking</li>
+                    <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-300 text-xs"></i> Weekly insights</li>
+                </ul>
+                <a href="{% url 'account_signup' %}" class="mt-8 block w-full py-3 bg-white text-center text-sm font-semibold text-green-700 rounded-full hover:bg-green-50 transition-colors">
+                    Go Plus
+                </a>
+            </div>
+
+            <!-- Pro -->
+            <div class="bg-white rounded-2xl border border-green-100 p-8 hover:shadow-lg transition-shadow">
+                <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Pro</p>
+                <p class="mt-1 text-sm text-gray-400">For serious transformation.</p>
+                <p class="mt-5"><span class="text-4xl font-bold text-green-950">$19</span><span class="text-gray-400 text-sm ml-1">/mo</span></p>
+                <ul class="mt-6 space-y-3 text-sm text-gray-600">
+                    <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500 text-xs"></i> Everything in Plus</li>
+                    <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500 text-xs"></i> MedGemma AI chat</li>
+                    <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500 text-xs"></i> Priority alerts</li>
+                    <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500 text-xs"></i> API access</li>
+                </ul>
+                <a href="{% url 'account_signup' %}" class="mt-8 block w-full py-3 border border-green-200 text-center text-sm font-semibold text-green-700 rounded-full hover:bg-green-50 transition-colors">
+                    Go Pro
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="py-10 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-5xl mx-auto bg-green-900 rounded-3xl py-16 px-8 text-center relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-64 h-64 bg-green-700/30 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+        <div class="absolute bottom-0 left-0 w-48 h-48 bg-emerald-600/20 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2"></div>
+        <div class="relative">
+            <h2 class="text-3xl lg:text-4xl font-bold text-white">
+                Better meals start <span class="font-accent">tonight.</span>
+            </h2>
+            <p class="mt-4 text-green-200 max-w-lg mx-auto">
+                Join thousands building healthier habits — one meal at a time.
+            </p>
+            <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+                <a href="{% url 'account_signup' %}" class="px-8 py-3.5 bg-white text-green-900 rounded-full text-sm font-semibold hover:bg-green-50 transition-colors">
+                    Get Started Free
+                </a>
+                <a href="#features" class="px-8 py-3.5 border border-green-400 text-green-100 rounded-full text-sm font-semibold hover:bg-green-800 transition-colors">
+                    Explore Features
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block footer %}
+<footer class="bg-green-50/50 border-t border-green-100">
+    <div class="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div class="flex items-center gap-2 text-sm text-gray-500">
+            <span>&copy; {% now "Y" %} DigFit. Eat well, effortlessly.</span>
+        </div>
+        <div class="flex items-center gap-6 text-sm text-gray-500">
+            <a href="#" class="hover:text-green-700 transition-colors">Privacy</a>
+            <a href="#" class="hover:text-green-700 transition-colors">Terms</a>
+            <a href="#" class="hover:text-green-700 transition-colors">Contact</a>
+        </div>
+    </div>
+</footer>
+{% endblock footer %}

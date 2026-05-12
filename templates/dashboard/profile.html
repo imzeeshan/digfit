@@ -1,0 +1,186 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Profile | DigFit{% endblock %}
+{% block page_title %}Profile{% endblock %}
+
+{% block dashboard_content %}
+<div>
+    <h2 class="text-xl font-medium text-black">Profile</h2>
+    <p class="mt-1 text-sm text-gray">Manage your account details and security.</p>
+
+    <!-- Avatar + Name header -->
+    <div class="mt-6 bg-white border border-light-gray rounded">
+        <div class="p-6 flex items-center gap-5">
+            <div id="avatar-trigger" class="relative group cursor-pointer">
+                {% if user.profile_pic %}
+                <img src="{{ user.profile_pic }}" alt="Profile picture" class="w-16 h-16 rounded-full object-cover flex-shrink-0">
+                {% else %}
+                <div class="w-16 h-16 bg-black rounded-full flex items-center justify-center text-white text-xl font-medium flex-shrink-0">
+                    {{ user.email|first|upper }}
+                </div>
+                {% endif %}
+                <div class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <i class="fa-solid fa-camera text-white text-sm"></i>
+                </div>
+            </div>
+            <form id="pic-upload-form" action="{% url 'dashboard:upload_profile_pic' %}" method="POST" enctype="multipart/form-data"
+                  class="absolute w-0 h-0 overflow-hidden">
+                {% csrf_token %}
+                <input type="file" name="profile_pic" id="profile-pic-input" accept="image/jpeg,image/png,image/webp,image/gif">
+            </form>
+            <div class="flex-1">
+                <p class="text-lg font-medium text-black">{{ user.name|default:user.email }}</p>
+                <p class="text-sm text-gray mt-0.5">{{ user.email }}</p>
+                <p class="text-xs text-gray mt-1">Member since {{ user.date_joined|date:"F Y" }}</p>
+            </div>
+            {% if user.profile_pic %}
+            <form action="{% url 'dashboard:remove_profile_pic' %}" method="POST">
+                {% csrf_token %}
+                <button type="submit" class="text-xs text-gray hover:text-black transition-colors" title="Remove picture">
+                    <i class="fa-solid fa-trash-can mr-1"></i>Remove photo
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Personal info form -->
+    <form action="{% url 'dashboard:profile' %}" method="POST" class="mt-4">
+        {% csrf_token %}
+        <div class="bg-white border border-light-gray rounded">
+            <div class="px-6 py-4 border-b border-light-gray">
+                <h3 class="text-sm font-medium text-black">Personal information</h3>
+                <p class="text-xs text-gray mt-0.5">Update your name and contact details.</p>
+            </div>
+            <div class="p-6 space-y-5">
+                <div>
+                    <label for="name" class="block text-xs text-gray uppercase tracking-wider mb-1.5">Name</label>
+                    <input type="text" name="name" id="name" value="{{ user.name }}" autocomplete="name"
+                           class="w-full border border-light-gray rounded px-3 py-2.5 text-sm focus:border-black focus:outline-none transition-colors">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray uppercase tracking-wider mb-1.5">Email address</label>
+                    <div class="flex items-center gap-3">
+                        <div class="flex-1 bg-[#fafafa] border border-light-gray rounded px-3 py-2.5 text-sm text-gray">{{ user.email }}</div>
+                        <a href="{% url 'account_email' %}" class="text-xs text-gray hover:text-black transition-colors whitespace-nowrap">Change email</a>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                        <label for="date_of_birth" class="block text-xs text-gray uppercase tracking-wider mb-1.5">
+                            Date of birth
+                            <span id="age-badge" class="ml-1 text-black font-medium normal-case tracking-normal"></span>
+                        </label>
+                        <input type="date" name="date_of_birth" id="date_of_birth" value="{{ user.date_of_birth|date:"Y-m-d" }}"
+                               class="w-full border border-light-gray rounded px-3 py-2.5 text-sm focus:border-black focus:outline-none transition-colors">
+                    </div>
+                    <div>
+                        <label for="gender" class="block text-xs text-gray uppercase tracking-wider mb-1.5">Gender</label>
+                        <select name="gender" id="gender"
+                                class="w-full border border-light-gray rounded px-3 py-2.5 text-sm focus:border-black focus:outline-none transition-colors bg-white">
+                            <option value="">— Select —</option>
+                            <option value="male" {% if user.gender == 'male' %}selected{% endif %}>Male</option>
+                            <option value="female" {% if user.gender == 'female' %}selected{% endif %}>Female</option>
+                            <option value="other" {% if user.gender == 'other' %}selected{% endif %}>Other</option>
+                            <option value="prefer_not_to_say" {% if user.gender == 'prefer_not_to_say' %}selected{% endif %}>Prefer not to say</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-light-gray flex justify-end bg-[#fafafa] rounded-b">
+                <button type="submit" class="text-sm px-5 py-2 bg-black text-white rounded hover:bg-dark-gray transition-colors">Save changes</button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Security -->
+    <div class="mt-4 bg-white border border-light-gray rounded">
+        <div class="px-6 py-4 border-b border-light-gray">
+            <h3 class="text-sm font-medium text-black">Security</h3>
+            <p class="text-xs text-gray mt-0.5">Manage your password and account access.</p>
+        </div>
+        <div class="divide-y divide-light-gray">
+            <div class="p-6 flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div class="w-9 h-9 bg-[#fafafa] rounded flex items-center justify-center">
+                        <i class="fa-solid fa-lock text-gray text-xs"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-black">Password</p>
+                        <p class="text-xs text-gray mt-0.5">Last changed: Unknown</p>
+                    </div>
+                </div>
+                <a href="{% url 'account_change_password' %}" class="text-sm px-4 py-1.5 border border-light-gray rounded text-gray hover:text-black hover:border-black transition-colors">Change</a>
+            </div>
+            <div class="p-6 flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div class="w-9 h-9 bg-[#fafafa] rounded flex items-center justify-center">
+                        <i class="fa-solid fa-envelope text-gray text-xs"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-black">Email verification</p>
+                        <p class="text-xs text-gray mt-0.5">Your email is verified.</p>
+                    </div>
+                </div>
+                <span class="text-xs text-gray bg-[#fafafa] px-3 py-1 rounded">Verified</span>
+            </div>
+            <div class="p-6 flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div class="w-9 h-9 bg-[#fafafa] rounded flex items-center justify-center">
+                        <i class="fa-solid fa-clock-rotate-left text-gray text-xs"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-black">Active sessions</p>
+                        <p class="text-xs text-gray mt-0.5">You are currently signed in.</p>
+                    </div>
+                </div>
+                <a href="{% url 'account_logout' %}" class="text-sm px-4 py-1.5 border border-light-gray rounded text-gray hover:text-black hover:border-black transition-colors">Sign out</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Danger zone -->
+    <div class="mt-4 bg-white border border-light-gray rounded">
+        <div class="px-6 py-4 border-b border-light-gray">
+            <h3 class="text-sm font-medium text-black">Danger zone</h3>
+        </div>
+        <div class="p-6 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="w-9 h-9 bg-[#fafafa] rounded flex items-center justify-center">
+                    <i class="fa-solid fa-trash text-gray text-xs"></i>
+                </div>
+                <div>
+                    <p class="text-sm text-black">Delete account</p>
+                    <p class="text-xs text-gray mt-0.5">Permanently remove your account, data, and subscriptions.</p>
+                </div>
+            </div>
+            <a href="mailto:support@example.com?subject=Delete%20my%20account" class="text-sm px-4 py-1.5 border border-light-gray rounded text-gray hover:text-black hover:border-black transition-colors">Request</a>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+    document.getElementById('avatar-trigger').addEventListener('click', function () {
+        document.getElementById('profile-pic-input').click();
+    });
+    document.getElementById('profile-pic-input').addEventListener('change', function () {
+        if (this.files.length) document.getElementById('pic-upload-form').submit();
+    });
+
+    (function () {
+        var dobInput = document.getElementById('date_of_birth');
+        var badge = document.getElementById('age-badge');
+        function updateAge() {
+            var val = dobInput.value;
+            if (!val) { badge.textContent = ''; return; }
+            var b = new Date(val + 'T00:00:00');
+            var t = new Date();
+            var age = t.getFullYear() - b.getFullYear();
+            if (t.getMonth() < b.getMonth() || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) age--;
+            badge.textContent = age >= 0 ? '(' + age + ' yrs)' : '';
+        }
+        dobInput.addEventListener('change', updateAge);
+        updateAge();
+    })();
+</script>
+{% endblock %}

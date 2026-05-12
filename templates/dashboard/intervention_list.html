@@ -1,0 +1,112 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Interventions | DigFit{% endblock %}
+{% block page_title %}Interventions{% endblock %}
+
+{% block dashboard_content %}
+<div>
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+            <h2 class="text-xl font-medium text-black">Interventions</h2>
+            <p class="mt-1 text-sm text-gray">Manage health and fitness interventions.</p>
+        </div>
+        <a href="{% url 'dashboard:intervention_create' %}" class="inline-flex items-center gap-2 text-sm px-5 py-2 bg-black text-white rounded hover:bg-dark-gray transition-colors">
+            <i class="fa-solid fa-plus text-xs"></i> New Intervention
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <form method="GET" class="flex flex-wrap items-end gap-3 mb-4">
+        <div>
+            <label class="block text-xs text-gray uppercase tracking-wider mb-1">User</label>
+            <select name="user" class="border border-light-gray rounded px-3 py-2 text-sm bg-white focus:border-black focus:outline-none">
+                <option value="">All users</option>
+                {% for u in users %}
+                <option value="{{ u.pk }}" {% if current_user_filter == u.pk|stringformat:"d" %}selected{% endif %}>{{ u.email }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs text-gray uppercase tracking-wider mb-1">Type</label>
+            <select name="type" class="border border-light-gray rounded px-3 py-2 text-sm bg-white focus:border-black focus:outline-none">
+                <option value="">All types</option>
+                {% for val, label in types %}
+                <option value="{{ val }}" {% if current_type_filter == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs text-gray uppercase tracking-wider mb-1">Status</label>
+            <select name="status" class="border border-light-gray rounded px-3 py-2 text-sm bg-white focus:border-black focus:outline-none">
+                <option value="">All</option>
+                {% for val, label in statuses %}
+                <option value="{{ val }}" {% if current_status_filter == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="text-sm px-4 py-2 border border-light-gray rounded hover:border-black transition-colors">Filter</button>
+    </form>
+
+    <!-- Table -->
+    <div class="bg-white border border-light-gray rounded overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-light-gray bg-[#fafafa]">
+                        <th class="text-left px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium">User</th>
+                        <th class="text-left px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium">Title</th>
+                        <th class="text-left px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium hidden sm:table-cell">Type</th>
+                        <th class="text-left px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium hidden md:table-cell">Status</th>
+                        <th class="text-left px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium hidden lg:table-cell">Priority</th>
+                        <th class="text-left px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium hidden lg:table-cell">Scheduled</th>
+                        <th class="text-right px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-light-gray">
+                    {% for entry in page %}
+                    <tr class="hover:bg-[#fafafa] transition-colors">
+                        <td class="px-5 py-3 text-black">{{ entry.user.email }}</td>
+                        <td class="px-5 py-3 text-black">{{ entry.title|truncatechars:35 }}</td>
+                        <td class="px-5 py-3 hidden sm:table-cell">
+                            <span class="inline-block px-2 py-0.5 text-xs rounded bg-[#fafafa] border border-light-gray text-gray">{{ entry.get_type_display }}</span>
+                        </td>
+                        <td class="px-5 py-3 hidden md:table-cell">
+                            <span class="inline-block px-2 py-0.5 text-xs rounded {% if entry.status == 'completed' %}bg-black text-white{% elif entry.status == 'active' %}bg-dark-gray text-white{% else %}bg-[#fafafa] border border-light-gray text-gray{% endif %}">{{ entry.get_status_display }}</span>
+                        </td>
+                        <td class="px-5 py-3 hidden lg:table-cell">
+                            <span class="inline-block px-2 py-0.5 text-xs rounded {% if entry.priority == 'urgent' %}bg-black text-white{% elif entry.priority == 'high' %}bg-dark-gray text-white{% else %}bg-[#fafafa] border border-light-gray text-gray{% endif %}">{{ entry.get_priority_display }}</span>
+                        </td>
+                        <td class="px-5 py-3 text-gray hidden lg:table-cell">{{ entry.scheduled_at|date:"M d, Y g:i A"|default:"—" }}</td>
+                        <td class="px-5 py-3 text-right">
+                            <a href="{% url 'dashboard:intervention_detail' entry.pk %}" class="text-gray hover:text-black transition-colors">
+                                <i class="fa-solid fa-arrow-right text-xs"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-5 py-8 text-center text-gray">No interventions found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page.has_other_pages %}
+        <div class="px-5 py-3 border-t border-light-gray flex items-center justify-between text-sm">
+            <span class="text-gray">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+            <div class="flex gap-2">
+                {% if page.has_previous %}
+                <a href="?page={{ page.previous_page_number }}&user={{ current_user_filter }}&type={{ current_type_filter }}&status={{ current_status_filter }}"
+                   class="px-3 py-1 border border-light-gray rounded hover:border-black transition-colors">&laquo; Prev</a>
+                {% endif %}
+                {% if page.has_next %}
+                <a href="?page={{ page.next_page_number }}&user={{ current_user_filter }}&type={{ current_type_filter }}&status={{ current_status_filter }}"
+                   class="px-3 py-1 border border-light-gray rounded hover:border-black transition-colors">Next &raquo;</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

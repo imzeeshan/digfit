@@ -1,0 +1,131 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Audit Logs | DigFit{% endblock %}
+{% block page_title %}Audit Logs{% endblock %}
+
+{% block dashboard_content %}
+<div>
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+            <h2 class="text-xl font-medium text-black">Audit Logs</h2>
+            <p class="mt-1 text-sm text-gray">Track all changes made across the application.</p>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <form method="GET" class="flex flex-wrap items-end gap-3 mb-4">
+        <div>
+            <label class="block text-xs text-gray uppercase tracking-wider mb-1">Action</label>
+            <select name="action" class="border border-light-gray rounded px-3 py-2 text-sm bg-white focus:border-black focus:outline-none">
+                <option value="">All actions</option>
+                {% for action_id, action_label in actions %}
+                <option value="{{ action_id }}" {% if current_action_filter == action_id|stringformat:"d" %}selected{% endif %}>{{ action_label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs text-gray uppercase tracking-wider mb-1">User</label>
+            <select name="user" class="border border-light-gray rounded px-3 py-2 text-sm bg-white focus:border-black focus:outline-none">
+                <option value="">All users</option>
+                {% for u in users %}
+                <option value="{{ u.pk }}" {% if current_user_filter == u.pk|stringformat:"d" %}selected{% endif %}>{{ u.email }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs text-gray uppercase tracking-wider mb-1">Model</label>
+            <select name="model" class="border border-light-gray rounded px-3 py-2 text-sm bg-white focus:border-black focus:outline-none">
+                <option value="">All models</option>
+                {% for ct in content_types %}
+                <option value="{{ ct.pk }}" {% if current_model_filter == ct.pk|stringformat:"d" %}selected{% endif %}>{{ ct.app_label }}.{{ ct.model }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="text-sm px-4 py-2 border border-light-gray rounded hover:border-black transition-colors">Filter</button>
+        {% if current_action_filter or current_user_filter or current_model_filter %}
+        <a href="{% url 'dashboard:audit_log_list' %}" class="text-sm px-4 py-2 text-gray hover:text-black transition-colors">Clear</a>
+        {% endif %}
+    </form>
+
+    <!-- Table -->
+    <div class="bg-white border border-light-gray rounded overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-light-gray bg-[#fafafa]">
+                        <th class="text-left px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium">Timestamp</th>
+                        <th class="text-left px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium">User</th>
+                        <th class="text-left px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium">Action</th>
+                        <th class="text-left px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium">Model</th>
+                        <th class="text-left px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium">Object</th>
+                        <th class="text-left px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium">Changes</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-light-gray">
+                    {% for entry in page %}
+                    <tr class="hover:bg-[#fafafa] transition-colors align-top">
+                        <td class="px-5 py-3 text-gray whitespace-nowrap">{{ entry.timestamp|date:"M d, Y g:i A" }}</td>
+                        <td class="px-5 py-3 text-black whitespace-nowrap">
+                            {% if entry.actor %}{{ entry.actor.email }}{% else %}<span class="text-gray italic">system</span>{% endif %}
+                        </td>
+                        <td class="px-5 py-3 whitespace-nowrap">
+                            {% if entry.action == 0 %}
+                            <span class="inline-block px-2 py-0.5 text-xs rounded bg-green-50 border border-green-200 text-green-700">Create</span>
+                            {% elif entry.action == 1 %}
+                            <span class="inline-block px-2 py-0.5 text-xs rounded bg-blue-50 border border-blue-200 text-blue-700">Update</span>
+                            {% elif entry.action == 2 %}
+                            <span class="inline-block px-2 py-0.5 text-xs rounded bg-red-50 border border-red-200 text-red-700">Delete</span>
+                            {% else %}
+                            <span class="inline-block px-2 py-0.5 text-xs rounded bg-[#fafafa] border border-light-gray text-gray">Access</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-5 py-3 whitespace-nowrap">
+                            <span class="inline-block px-2 py-0.5 text-xs rounded bg-[#fafafa] border border-light-gray text-gray">{{ entry.content_type.model }}</span>
+                        </td>
+                        <td class="px-5 py-3 text-black max-w-[200px] truncate" title="{{ entry.object_repr }}">{{ entry.object_repr }}</td>
+                        <td class="px-5 py-3 text-gray text-xs max-w-[300px]">
+                            {% if entry.action == 1 and entry.changes_dict %}
+                                {% for field, vals in entry.changes_dict.items %}
+                                <div class="mb-1">
+                                    <span class="font-medium text-black">{{ field }}</span>:
+                                    <span class="line-through text-red-400">{{ vals.0|truncatechars:30 }}</span>
+                                    &rarr;
+                                    <span class="text-green-600">{{ vals.1|truncatechars:30 }}</span>
+                                </div>
+                                {% endfor %}
+                            {% elif entry.action == 0 %}
+                                <span class="text-green-600 italic">Object created</span>
+                            {% elif entry.action == 2 %}
+                                <span class="text-red-500 italic">Object deleted</span>
+                            {% else %}
+                                <span class="italic">&mdash;</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-5 py-8 text-center text-gray">No audit log entries found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page.has_other_pages %}
+        <div class="px-5 py-3 border-t border-light-gray flex items-center justify-between text-sm">
+            <span class="text-gray">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+            <div class="flex gap-2">
+                {% if page.has_previous %}
+                <a href="?page={{ page.previous_page_number }}&action={{ current_action_filter }}&user={{ current_user_filter }}&model={{ current_model_filter }}"
+                   class="px-3 py-1 border border-light-gray rounded hover:border-black transition-colors">&laquo; Prev</a>
+                {% endif %}
+                {% if page.has_next %}
+                <a href="?page={{ page.next_page_number }}&action={{ current_action_filter }}&user={{ current_user_filter }}&model={{ current_model_filter }}"
+                   class="px-3 py-1 border border-light-gray rounded hover:border-black transition-colors">Next &raquo;</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,133 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}{% if managed_user %}Edit User{% else %}New User{% endif %} | DigFit{% endblock %}
+{% block page_title %}{% if managed_user %}Edit User{% else %}New User{% endif %}{% endblock %}
+
+{% block dashboard_content %}
+<div>
+    <div class="flex items-center gap-3 mb-6">
+        <a href="{% if managed_user %}{% url 'dashboard:user_detail' managed_user.pk %}{% else %}{% url 'dashboard:user_list' %}{% endif %}" class="text-gray hover:text-black transition-colors">
+            <i class="fa-solid fa-arrow-left text-xs"></i>
+        </a>
+        <h2 class="text-xl font-medium text-black">{% if managed_user %}Edit {{ managed_user.email }}{% else %}Create User{% endif %}</h2>
+    </div>
+
+    <form method="POST" class="bg-white border border-light-gray rounded">
+        {% csrf_token %}
+        <div class="divide-y divide-light-gray">
+            <!-- Email -->
+            <div class="px-6 py-4">
+                <label for="email" class="block text-xs text-gray uppercase tracking-wider mb-1.5">Email</label>
+                <input id="email" name="email" type="email" required
+                       value="{% if managed_user %}{{ managed_user.email }}{% elif form_data %}{{ form_data.email }}{% endif %}"
+                       placeholder="user@example.com"
+                       class="w-full border border-light-gray rounded px-3 py-2.5 text-sm focus:border-black focus:outline-none transition-colors bg-white">
+            </div>
+
+            <!-- Password -->
+            <div class="px-6 py-4">
+                <label for="password" class="block text-xs text-gray uppercase tracking-wider mb-1.5">
+                    Password{% if managed_user %} <span class="normal-case text-gray">(leave blank to keep current)</span>{% endif %}
+                </label>
+                <input id="password" name="password" type="password"
+                       {% if not managed_user %}required{% endif %}
+                       minlength="8"
+                       placeholder="{% if managed_user %}••••••••{% else %}Min. 8 characters{% endif %}"
+                       class="w-full border border-light-gray rounded px-3 py-2.5 text-sm focus:border-black focus:outline-none transition-colors bg-white">
+            </div>
+
+            <!-- Name -->
+            <div class="px-6 py-4">
+                <label for="name" class="block text-xs text-gray uppercase tracking-wider mb-1.5">Name</label>
+                <input id="name" name="name" type="text" maxlength="255"
+                       value="{% if managed_user %}{{ managed_user.name }}{% elif form_data %}{{ form_data.name }}{% endif %}"
+                       placeholder="Full name"
+                       class="w-full border border-light-gray rounded px-3 py-2.5 text-sm focus:border-black focus:outline-none transition-colors bg-white">
+            </div>
+
+            <!-- Date of Birth -->
+            <div class="px-6 py-4">
+                <label for="date_of_birth" class="block text-xs text-gray uppercase tracking-wider mb-1.5">Date of Birth</label>
+                <input id="date_of_birth" name="date_of_birth" type="date"
+                       value="{% if managed_user.date_of_birth %}{{ managed_user.date_of_birth|date:'Y-m-d' }}{% elif form_data %}{{ form_data.date_of_birth }}{% endif %}"
+                       class="w-full border border-light-gray rounded px-3 py-2.5 text-sm focus:border-black focus:outline-none transition-colors bg-white">
+            </div>
+
+            <!-- Role -->
+            <div class="px-6 py-4">
+                <label for="role" class="block text-xs text-gray uppercase tracking-wider mb-1.5">Role</label>
+                <select id="role" name="role"
+                        class="w-full border border-light-gray rounded px-3 py-2.5 text-sm bg-white focus:border-black focus:outline-none transition-colors">
+                    {% for val, label in role_choices %}
+                    <option value="{{ val }}"
+                        {% if managed_user and managed_user.role == val %}selected{% elif form_data and form_data.role == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Coach-specific fields (visible only when role is Coach) -->
+            <div id="coach-speciality" class="px-6 py-4" style="display:none">
+                <label for="speciality" class="block text-xs text-gray uppercase tracking-wider mb-1.5">Speciality</label>
+                <input id="speciality" name="speciality" type="text" maxlength="255"
+                       value="{{ coach_speciality }}"
+                       placeholder="e.g. Strength Training, Nutrition, Yoga"
+                       class="w-full border border-light-gray rounded px-3 py-2.5 text-sm focus:border-black focus:outline-none transition-colors bg-white">
+            </div>
+            <div id="coach-experience" class="px-6 py-4" style="display:none">
+                <label for="years_of_experience" class="block text-xs text-gray uppercase tracking-wider mb-1.5">Years of Experience</label>
+                <input id="years_of_experience" name="years_of_experience" type="number" min="0" max="99" step="1"
+                       value="{{ coach_years_of_experience }}"
+                       placeholder="0"
+                       class="w-full border border-light-gray rounded px-3 py-2.5 text-sm focus:border-black focus:outline-none transition-colors bg-white">
+            </div>
+
+            <!-- Gender -->
+            <div class="px-6 py-4">
+                <label for="gender" class="block text-xs text-gray uppercase tracking-wider mb-1.5">Gender</label>
+                <select id="gender" name="gender"
+                        class="w-full border border-light-gray rounded px-3 py-2.5 text-sm bg-white focus:border-black focus:outline-none transition-colors">
+                    {% for val, label in gender_choices %}
+                    <option value="{{ val }}"
+                        {% if managed_user and managed_user.gender == val %}selected{% elif form_data and form_data.gender == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Flags -->
+            <div class="px-6 py-4 flex flex-wrap gap-6">
+                <label for="is_active" class="flex items-center gap-2 cursor-pointer">
+                    <input id="is_active" name="is_active" type="checkbox" class="h-4 w-4 accent-black"
+                           {% if managed_user %}{% if managed_user.is_active %}checked{% endif %}{% elif form_data %}{% if form_data.is_active %}checked{% endif %}{% else %}checked{% endif %}>
+                    <span class="text-sm text-black">Active</span>
+                </label>
+                <label for="is_staff" class="flex items-center gap-2 cursor-pointer">
+                    <input id="is_staff" name="is_staff" type="checkbox" class="h-4 w-4 accent-black"
+                           {% if managed_user and managed_user.is_staff %}checked{% elif form_data and form_data.is_staff %}checked{% endif %}>
+                    <span class="text-sm text-black">Staff</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="px-6 py-4 border-t border-light-gray bg-[#fafafa] rounded-b flex justify-end gap-3">
+            <a href="{% if managed_user %}{% url 'dashboard:user_detail' managed_user.pk %}{% else %}{% url 'dashboard:user_list' %}{% endif %}"
+               class="text-sm px-4 py-2 border border-light-gray rounded text-gray hover:text-black hover:border-black transition-colors">Cancel</a>
+            <button type="submit" class="text-sm px-5 py-2 bg-black text-white rounded hover:bg-dark-gray transition-colors">
+                {% if managed_user %}Save Changes{% else %}Create User{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+(function() {
+    var roleSelect = document.getElementById('role');
+    var coachFields = [document.getElementById('coach-speciality'), document.getElementById('coach-experience')];
+    function toggle() {
+        var show = roleSelect.value === 'coach';
+        coachFields.forEach(function(el) { el.style.display = show ? '' : 'none'; });
+    }
+    roleSelect.addEventListener('change', toggle);
+    toggle();
+})();
+</script>
+{% endblock %}

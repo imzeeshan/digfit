@@ -1,0 +1,93 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}{% if entry %}Edit{% else %}Record{% endif %} User Meal | DigFit{% endblock %}
+{% block page_title %}{% if entry %}Edit{% else %}Record{% endif %} User Meal{% endblock %}
+
+{% block dashboard_content %}
+<div>
+    <div class="flex items-center gap-3 mb-6">
+        <a href="{% if entry %}{% url 'dashboard:usermeal_detail' entry.pk %}{% else %}{% url 'dashboard:usermeal_list' %}{% endif %}" class="text-gray hover:text-black transition-colors">
+            <i class="fa-solid fa-arrow-left text-xs"></i>
+        </a>
+        <h2 class="text-xl font-medium text-black">{% if entry %}Edit Meal Record #{{ entry.pk }}{% else %}Record a Meal{% endif %}</h2>
+    </div>
+
+    <form method="POST" class="bg-white border border-light-gray rounded">
+        {% csrf_token %}
+        <div class="divide-y divide-light-gray">
+            <!-- User -->
+            <div class="px-6 py-4">
+                <label for="user" class="block text-xs text-gray uppercase tracking-wider mb-1.5">User</label>
+                <select id="user" name="user" required
+                        class="w-full border border-light-gray rounded px-3 py-2.5 text-sm bg-white focus:border-black focus:outline-none transition-colors">
+                    <option value="">Select a user</option>
+                    {% for u in users %}
+                    <option value="{{ u.pk }}" {% if entry and entry.user_id == u.pk %}selected{% endif %}>{{ u.email }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Type + Time -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-light-gray">
+                <div class="px-6 py-4">
+                    <label for="meal_type" class="block text-xs text-gray uppercase tracking-wider mb-1.5">Type</label>
+                    <select id="meal_type" name="meal_type" required
+                            class="w-full border border-light-gray rounded px-3 py-2.5 text-sm bg-white focus:border-black focus:outline-none transition-colors">
+                        {% for val, label in meal_types %}
+                        <option value="{{ val }}" {% if entry and entry.meal_type == val %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="px-6 py-4">
+                    <label for="time_taken" class="block text-xs text-gray uppercase tracking-wider mb-1.5">Time Taken</label>
+                    <input id="time_taken" name="time_taken" type="datetime-local" required
+                           value="{% if entry %}{{ entry.time_taken|date:'Y-m-d\TH:i' }}{% endif %}"
+                           class="w-full border border-light-gray rounded px-3 py-2.5 text-sm focus:border-black focus:outline-none transition-colors bg-white">
+                </div>
+            </div>
+
+            <!-- Title -->
+            <div class="px-6 py-4">
+                <label for="title" class="block text-xs text-gray uppercase tracking-wider mb-1.5">Title</label>
+                <input id="title" name="title" type="text" maxlength="255" required
+                       value="{% if entry %}{{ entry.title }}{% endif %}"
+                       placeholder="e.g. Grilled chicken with rice"
+                       class="w-full border border-light-gray rounded px-3 py-2.5 text-sm focus:border-black focus:outline-none transition-colors bg-white">
+            </div>
+
+            <!-- Calories -->
+            <div class="px-6 py-4">
+                <label for="calories" class="block text-xs text-gray uppercase tracking-wider mb-1.5">Calories</label>
+                <input id="calories" name="calories" type="number" min="0"
+                       value="{% if entry %}{{ entry.calories }}{% else %}0{% endif %}"
+                       class="w-full border border-light-gray rounded px-3 py-2.5 text-sm font-mono focus:border-black focus:outline-none transition-colors bg-white">
+            </div>
+
+            <!-- Description -->
+            <div class="px-6 py-4">
+                <label for="description" class="block text-xs text-gray uppercase tracking-wider mb-1.5">Description</label>
+                <textarea id="description" name="description" rows="3"
+                          placeholder="What was in the meal…"
+                          class="w-full border border-light-gray rounded px-3 py-2.5 text-sm focus:border-black focus:outline-none transition-colors bg-white">{% if entry %}{{ entry.description }}{% endif %}</textarea>
+            </div>
+
+            <!-- Metadata -->
+            <div class="px-6 py-4">
+                <label for="metadata" class="block text-xs text-gray uppercase tracking-wider mb-1.5">Metadata (JSON)</label>
+                <textarea id="metadata" name="metadata" rows="3"
+                          placeholder='{"source": "manual", "photo_url": ""}'
+                          class="w-full border border-light-gray rounded px-3 py-2.5 text-sm font-mono focus:border-black focus:outline-none transition-colors bg-white">{% if entry.metadata %}{{ entry.metadata|pprint }}{% endif %}</textarea>
+                <p class="text-xs text-gray mt-1">Optional. Must be a valid JSON object.</p>
+            </div>
+        </div>
+
+        <div class="px-6 py-4 border-t border-light-gray bg-[#fafafa] rounded-b flex justify-end gap-3">
+            <a href="{% if entry %}{% url 'dashboard:usermeal_detail' entry.pk %}{% else %}{% url 'dashboard:usermeal_list' %}{% endif %}"
+               class="text-sm px-4 py-2 border border-light-gray rounded text-gray hover:text-black hover:border-black transition-colors">Cancel</a>
+            <button type="submit" class="text-sm px-5 py-2 bg-black text-white rounded hover:bg-dark-gray transition-colors">
+                {% if entry %}Save Changes{% else %}Record Meal{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

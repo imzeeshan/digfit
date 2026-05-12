@@ -1,0 +1,109 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Meal Plans | DigFit{% endblock %}
+{% block page_title %}Meal Plans{% endblock %}
+
+{% block dashboard_content %}
+<div>
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+            <h2 class="text-xl font-medium text-black">Meal Plans</h2>
+            <p class="mt-1 text-sm text-gray">Manage structured meal plans and nutrition targets.</p>
+        </div>
+        <a href="{% url 'dashboard:meal_create' %}" class="inline-flex items-center gap-2 text-sm px-5 py-2 bg-black text-white rounded hover:bg-dark-gray transition-colors">
+            <i class="fa-solid fa-plus text-xs"></i> New Plan
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <form method="GET" class="flex flex-wrap items-end gap-3 mb-4">
+        <div>
+            <label class="block text-xs text-gray uppercase tracking-wider mb-1">User</label>
+            <select name="user" class="border border-light-gray rounded px-3 py-2 text-sm bg-white focus:border-black focus:outline-none">
+                <option value="">All users</option>
+                {% for u in users %}
+                <option value="{{ u.pk }}" {% if current_user_filter == u.pk|stringformat:"d" %}selected{% endif %}>{{ u.email }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs text-gray uppercase tracking-wider mb-1">Diet</label>
+            <select name="dietary_preference" class="border border-light-gray rounded px-3 py-2 text-sm bg-white focus:border-black focus:outline-none">
+                <option value="">All</option>
+                {% for val, label in dietary_choices %}
+                <option value="{{ val }}" {% if current_diet_filter == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs text-gray uppercase tracking-wider mb-1">From</label>
+            <input type="date" name="date_from" value="{{ current_date_from }}"
+                   class="border border-light-gray rounded px-3 py-2 text-sm bg-white focus:border-black focus:outline-none">
+        </div>
+        <div>
+            <label class="block text-xs text-gray uppercase tracking-wider mb-1">To</label>
+            <input type="date" name="date_to" value="{{ current_date_to }}"
+                   class="border border-light-gray rounded px-3 py-2 text-sm bg-white focus:border-black focus:outline-none">
+        </div>
+        <button type="submit" class="text-sm px-4 py-2 border border-light-gray rounded hover:border-black transition-colors">Filter</button>
+    </form>
+
+    <!-- Table -->
+    <div class="bg-white border border-light-gray rounded overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-light-gray bg-[#fafafa]">
+                        <th class="text-left px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium">User</th>
+                        <th class="text-left px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium">Plan</th>
+                        <th class="text-left px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium">Dates</th>
+                        <th class="text-left px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium hidden sm:table-cell">Diet</th>
+                        <th class="text-right px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium hidden md:table-cell">Entries</th>
+                        <th class="text-right px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium hidden lg:table-cell">Cal Target</th>
+                        <th class="text-right px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-light-gray">
+                    {% for meal in page %}
+                    <tr class="hover:bg-[#fafafa] transition-colors">
+                        <td class="px-5 py-3 text-black">{{ meal.user.email }}</td>
+                        <td class="px-5 py-3 text-black font-medium">{{ meal.title|truncatechars:35 }}</td>
+                        <td class="px-5 py-3 text-gray whitespace-nowrap">{{ meal.start_date|date:"M d" }} — {{ meal.end_date|date:"M d, Y" }}</td>
+                        <td class="px-5 py-3 hidden sm:table-cell">
+                            <span class="inline-block px-2 py-0.5 text-xs rounded bg-[#fafafa] border border-light-gray text-gray">{{ meal.get_dietary_preference_display }}</span>
+                        </td>
+                        <td class="px-5 py-3 text-black text-right font-mono hidden md:table-cell">{{ meal.entry_count }}</td>
+                        <td class="px-5 py-3 text-gray text-right font-mono hidden lg:table-cell">{{ meal.daily_calorie_target|default:"—" }}</td>
+                        <td class="px-5 py-3 text-right">
+                            <a href="{% url 'dashboard:meal_detail' meal.pk %}" class="text-gray hover:text-black transition-colors">
+                                <i class="fa-solid fa-arrow-right text-xs"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-5 py-8 text-center text-gray">No meal plans found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page.has_other_pages %}
+        <div class="px-5 py-3 border-t border-light-gray flex items-center justify-between text-sm">
+            <span class="text-gray">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+            <div class="flex gap-2">
+                {% if page.has_previous %}
+                <a href="?page={{ page.previous_page_number }}&user={{ current_user_filter }}&dietary_preference={{ current_diet_filter }}&date_from={{ current_date_from }}&date_to={{ current_date_to }}"
+                   class="px-3 py-1 border border-light-gray rounded hover:border-black transition-colors">&laquo; Prev</a>
+                {% endif %}
+                {% if page.has_next %}
+                <a href="?page={{ page.next_page_number }}&user={{ current_user_filter }}&dietary_preference={{ current_diet_filter }}&date_from={{ current_date_from }}&date_to={{ current_date_to }}"
+                   class="px-3 py-1 border border-light-gray rounded hover:border-black transition-colors">Next &raquo;</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

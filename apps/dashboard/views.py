@@ -32,7 +32,11 @@ from .tasks import (
 @login_required
 @require_http_methods(['GET'])
 def dashboard_home(request):
-    return render(request, 'dashboard/home.html')
+    user_settings, _ = UserSettings.objects.get_or_create(user=request.user)
+    context = {
+        'weight_reminder': user_settings.get_weight_reminder(),
+    }
+    return render(request, 'dashboard/home.html', context)
 
 @login_required
 @require_http_methods(['GET', 'POST'])
@@ -65,6 +69,8 @@ def settings(request):
         user_settings.notify_marketing = request.POST.get('marketing') == 'on'
         user_settings.ollama_host = (request.POST.get('ollama_host') or '').strip()[:500]
         user_settings.ollama_model = (request.POST.get('ollama_model') or '').strip()[:200]
+        reminder_raw = request.POST.get('weight_reminder_days', '5').strip()
+        user_settings.weight_reminder_days = max(0, int(reminder_raw)) if reminder_raw.isdigit() else 5
         user_settings.save()
 
         messages.success(request, 'Settings updated successfully.')
@@ -103,6 +109,7 @@ def settings(request):
             'default_host': django_settings.OLLAMA_HOST,
             'default_model': django_settings.OLLAMA_MODEL,
         },
+        'weight_reminder_days': user_settings.weight_reminder_days,
     }
     return render(request, 'dashboard/settings.html', context)
 

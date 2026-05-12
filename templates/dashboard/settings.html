@@ -58,6 +58,17 @@
                 </label>
             </div>
             <div class="px-6 py-4 border-t border-light-gray bg-[#fafafa]">
+                <h3 class="text-sm font-medium text-black">Reminders</h3>
+                <p class="text-xs text-gray mt-0.5">Get notified on the dashboard when you haven't logged data.</p>
+                <div class="mt-4">
+                    <label for="weight_reminder_days" class="block text-xs text-gray uppercase tracking-wider mb-1.5">Weight log reminder (days)</label>
+                    <input id="weight_reminder_days" name="weight_reminder_days" type="number" min="0" max="365"
+                           value="{{ weight_reminder_days }}"
+                           class="w-32 border border-light-gray rounded px-3 py-2.5 text-sm font-mono focus:border-black focus:outline-none transition-colors bg-white">
+                    <p class="text-xs text-gray mt-1.5">Show a reminder after this many days without a weight entry. Set to <strong>0</strong> to disable.</p>
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-light-gray bg-[#fafafa]">
                 <h3 class="text-sm font-medium text-black">Ollama</h3>
                 <p class="text-xs text-gray mt-0.5">Local LLM API. Leave blank to use server defaults from environment.</p>
                 <div class="mt-4 space-y-4">

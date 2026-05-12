@@ -49,6 +49,7 @@ class UserSettingsSerializer(serializers.ModelSerializer):
         model = UserSettings
         fields = [
             'id', 'notify_comments', 'notify_updates', 'notify_marketing',
+            'weight_reminder_days',
             'subscription_plan', 'subscription_plan_name',
             'subscription_status', 'subscription_start_date',
             'subscription_end_date', 'trial_end_date',

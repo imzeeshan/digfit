@@ -140,6 +140,7 @@ Retrieve and update notification preferences and subscription info. No create/de
 | `notify_comments` | bool | Yes | |
 | `notify_updates` | bool | Yes | |
 | `notify_marketing` | bool | Yes | |
+| `weight_reminder_days` | int | Yes | Days without a weight log before reminder (0 = disabled, default 5) |
 | `subscription_plan` | int | No | FK |
 | `subscription_plan_name` | string | No | |
 | `subscription_status` | string | No | |
@@ -190,6 +191,7 @@ Full CRUD. `user` is auto-set to the authenticated user on create.
 | `PUT` | `/api/weights/{id}/` | Authenticated | Full update |
 | `PATCH` | `/api/weights/{id}/` | Authenticated | Partial update |
 | `DELETE` | `/api/weights/{id}/` | Authenticated | Delete |
+| `GET` | `/api/weights/reminder/` | Authenticated | Check if current user's weight log is overdue |
 
 #### Fields
 
@@ -202,6 +204,30 @@ Full CRUD. `user` is auto-set to the authenticated user on create.
 | `value` | decimal | Yes | Weight in lbs |
 | `source` | string | Yes | `manual` (default), `api`, `import`, `device` |
 | `metadata` | object | Yes | Arbitrary JSON |
+
+#### GET `/api/weights/reminder/`
+
+Returns the current user's weight reminder status. The threshold is configured per-user
+via `weight_reminder_days` in User Settings (default: 5, set to 0 to disable).
+
+**Response when overdue:**
+
+```json
+{
+  "overdue": true,
+  "threshold_days": 5,
+  "last_logged": "2026-05-06T08:00:00Z",
+  "days_since": 7
+}
+```
+
+**Response when up to date (or reminders disabled):**
+
+```json
+{
+  "overdue": false
+}
+```
 
 #### Example: create a weight entry
 

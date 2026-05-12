@@ -4,6 +4,28 @@
 {% block page_title %}Overview{% endblock %}
 
 {% block dashboard_content %}
+{% if weight_reminder %}
+<div class="mb-6 flex items-start gap-3 bg-[#fafafa] border border-light-gray rounded p-4">
+    <div class="w-8 h-8 bg-black rounded flex items-center justify-center flex-shrink-0 mt-0.5">
+        <i class="fa-solid fa-scale-balanced text-white text-xs"></i>
+    </div>
+    <div class="flex-1 min-w-0">
+        <p class="text-sm font-medium text-black">Weight log overdue</p>
+        <p class="text-xs text-gray mt-0.5">
+            {% if weight_reminder.days_since %}
+                You haven't logged your weight in <strong>{{ weight_reminder.days_since }} day{{ weight_reminder.days_since|pluralize }}</strong>.
+            {% else %}
+                You haven't logged your weight yet.
+            {% endif %}
+            Your reminder is set to every {{ weight_reminder.threshold_days }} day{{ weight_reminder.threshold_days|pluralize }}.
+        </p>
+    </div>
+    <a href="{% url 'dashboard:weight_list' %}" class="text-xs px-3 py-1.5 bg-black text-white rounded hover:bg-dark-gray transition-colors flex-shrink-0 whitespace-nowrap">
+        Log weight
+    </a>
+</div>
+{% endif %}
+
 <!-- Welcome -->
 <div class="mb-8">
     <h2 class="text-xl font-medium text-black">Welcome back{% if user.name %}, {{ user.name }}{% endif %}</h2>

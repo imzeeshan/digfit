@@ -107,6 +107,17 @@ class WeightViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
+    @action(detail=False, methods=['get'], url_path='reminder')
+    def reminder(self, request):
+        """Check if the current user's weight log is overdue."""
+        us, _ = UserSettings.objects.get_or_create(user=request.user)
+        reminder = us.get_weight_reminder()
+        if reminder:
+            reminder['last_logged'] = (
+                reminder['last_logged'].isoformat() if reminder['last_logged'] else None
+            )
+        return Response(reminder or {'overdue': False})
+
 
 class UserMealViewSet(viewsets.ModelViewSet):
     """User meals (actual meals taken) — admin sees all; regular users see only their own."""

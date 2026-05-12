@@ -41,6 +41,12 @@ class UserSettings(models.Model):
     notify_updates = models.BooleanField(default=False)
     notify_marketing = models.BooleanField(default=False)
 
+    # Reminders
+    weight_reminder_days = models.PositiveIntegerField(
+        default=5,
+        help_text='Notify after this many days without a weight log (0 = disabled)',
+    )
+
     # Ollama (local LLM); empty strings fall back to Django settings OLLAMA_HOST / OLLAMA_MODEL
     ollama_host = models.CharField(max_length=500, blank=True, default='')
     ollama_model = models.CharField(max_length=200, blank=True, default='')
@@ -93,6 +99,27 @@ class UserSettings(models.Model):
 
         v = (self.ollama_model or '').strip()
         return v or django_settings.OLLAMA_MODEL
+
+    def get_weight_reminder(self) -> dict | None:
+        """Return reminder info if user hasn't logged weight within reminder window, else None."""
+        if not self.weight_reminder_days:
+            return None
+        cutoff = timezone.now() - timezone.timedelta(days=self.weight_reminder_days)
+        last_weight = (
+            Weight.objects.filter(user=self.user)
+            .order_by('-datetime')
+            .values_list('datetime', flat=True)
+            .first()
+        )
+        if last_weight and last_weight >= cutoff:
+            return None
+        days_since = (timezone.now() - last_weight).days if last_weight else None
+        return {
+            'overdue': True,
+            'threshold_days': self.weight_reminder_days,
+            'last_logged': last_weight,
+            'days_since': days_since,
+        }
 
     @property
     def is_subscription_active(self):

@@ -14,6 +14,7 @@
 
     <div class="bg-white border border-light-gray rounded">
         <div class="divide-y divide-light-gray">
+            {% if user.is_staff %}
             <div class="px-6 py-4 flex items-center gap-4">
                 <div class="w-9 h-9 bg-[#fafafa] rounded flex items-center justify-center">
                     <i class="fa-solid fa-user text-gray text-xs"></i>
@@ -23,6 +24,7 @@
                     <p class="text-sm text-black mt-0.5">{{ entry.user.email }}</p>
                 </div>
             </div>
+            {% endif %}
             <div class="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-light-gray">
                 <div class="px-6 py-4">
                     <p class="text-xs text-gray uppercase tracking-wider">Type</p>

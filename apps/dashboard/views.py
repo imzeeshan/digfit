@@ -32,11 +32,7 @@ from .tasks import (
 @login_required
 @require_http_methods(['GET'])
 def dashboard_home(request):
-    user_settings, _ = UserSettings.objects.get_or_create(user=request.user)
-    context = {
-        'weight_reminder': user_settings.get_weight_reminder(),
-    }
-    return render(request, 'dashboard/home.html', context)
+    return render(request, 'dashboard/home.html')
 
 @login_required
 @require_http_methods(['GET', 'POST'])
@@ -1115,11 +1111,14 @@ def entry_delete(request, pk):
 
 
 # ---------------------------------------------------------------------------
-# User Meal CRUD — admin only
+# User Meal CRUD — staff see all users; regular users see only their own meals
 # ---------------------------------------------------------------------------
 
-def _parse_usermeal_form(request):
-    """Extract and validate user meal form fields. Returns (data, errors)."""
+def _parse_usermeal_form(request, *, forced_user=None):
+    """Extract and validate user meal form fields. Returns (data, errors).
+
+    When forced_user is set, that user is used and the POST ``user`` field is ignored.
+    """
     errors = []
     user_id = request.POST.get('user')
     meal_type = request.POST.get('meal_type', '')
@@ -1130,7 +1129,9 @@ def _parse_usermeal_form(request):
     metadata_str = request.POST.get('metadata', '').strip() or '{}'
 
     user_obj = None
-    if user_id:
+    if forced_user is not None:
+        user_obj = forced_user
+    elif user_id:
         try:
             user_obj = User.objects.get(pk=user_id)
         except User.DoesNotExist:
@@ -1181,14 +1182,18 @@ def _parse_usermeal_form(request):
     }, errors
 
 
-@staff_member_required
+@login_required
 @require_http_methods(['GET'])
 def usermeal_list(request):
-    qs = UserMeal.objects.select_related('user').all()
-
-    user_filter = request.GET.get('user')
-    if user_filter:
-        qs = qs.filter(user_id=user_filter)
+    qs = UserMeal.objects.select_related('user')
+    if request.user.is_staff:
+        qs = qs.all()
+        user_filter = request.GET.get('user')
+        if user_filter:
+            qs = qs.filter(user_id=user_filter)
+    else:
+        qs = qs.filter(user=request.user)
+        user_filter = None
 
     type_filter = request.GET.get('meal_type')
     if type_filter:
@@ -1199,7 +1204,7 @@ def usermeal_list(request):
 
     context = {
         'page': page,
-        'users': User.objects.order_by('email'),
+        'users': User.objects.order_by('email') if request.user.is_staff else [],
         'meal_types': UserMeal.MEAL_TYPE_CHOICES,
         'current_user_filter': user_filter or '',
         'current_type_filter': type_filter or '',
@@ -1207,18 +1212,23 @@ def usermeal_list(request):
     return render(request, 'dashboard/usermeal_list.html', context)
 
 
-@staff_member_required
+@login_required
 @require_http_methods(['GET'])
 def usermeal_detail(request, pk):
-    entry = get_object_or_404(UserMeal.objects.select_related('user'), pk=pk)
+    qs = UserMeal.objects.select_related('user')
+    if not request.user.is_staff:
+        qs = qs.filter(user=request.user)
+    entry = get_object_or_404(qs, pk=pk)
     return render(request, 'dashboard/usermeal_detail.html', {'entry': entry})
 
 
-@staff_member_required
+@login_required
 @require_http_methods(['GET', 'POST'])
 def usermeal_create(request):
+    forced_user = None if request.user.is_staff else request.user
+
     if request.method == 'POST':
-        data, errors = _parse_usermeal_form(request)
+        data, errors = _parse_usermeal_form(request, forced_user=forced_user)
         if errors:
             for e in errors:
                 messages.error(request, e)
@@ -1228,19 +1238,24 @@ def usermeal_create(request):
             return redirect('dashboard:usermeal_list')
 
     context = {
-        'users': User.objects.order_by('email'),
+        'users': User.objects.order_by('email') if request.user.is_staff else [],
         'meal_types': UserMeal.MEAL_TYPE_CHOICES,
     }
     return render(request, 'dashboard/usermeal_form.html', context)
 
 
-@staff_member_required
+@login_required
 @require_http_methods(['GET', 'POST'])
 def usermeal_edit(request, pk):
-    entry = get_object_or_404(UserMeal, pk=pk)
+    qs = UserMeal.objects.all()
+    if not request.user.is_staff:
+        qs = qs.filter(user=request.user)
+    entry = get_object_or_404(qs, pk=pk)
+
+    forced_user = None if request.user.is_staff else request.user
 
     if request.method == 'POST':
-        data, errors = _parse_usermeal_form(request)
+        data, errors = _parse_usermeal_form(request, forced_user=forced_user)
         if errors:
             for e in errors:
                 messages.error(request, e)
@@ -1253,16 +1268,19 @@ def usermeal_edit(request, pk):
 
     context = {
         'entry': entry,
-        'users': User.objects.order_by('email'),
+        'users': User.objects.order_by('email') if request.user.is_staff else [],
         'meal_types': UserMeal.MEAL_TYPE_CHOICES,
     }
     return render(request, 'dashboard/usermeal_form.html', context)
 
 
-@staff_member_required
+@login_required
 @require_http_methods(['POST'])
 def usermeal_delete(request, pk):
-    entry = get_object_or_404(UserMeal, pk=pk)
+    qs = UserMeal.objects.all()
+    if not request.user.is_staff:
+        qs = qs.filter(user=request.user)
+    entry = get_object_or_404(qs, pk=pk)
     entry.delete()
     messages.success(request, 'User meal deleted.')
     return redirect('dashboard:usermeal_list')

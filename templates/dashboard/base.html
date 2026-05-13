@@ -73,6 +73,9 @@
                 <a href="{% url 'dashboard:weight_list' %}" class="flex items-center gap-3 px-3 py-2.5 rounded text-sm {% if 'weight' in request.resolver_match.url_name %}bg-black text-white{% else %}text-gray hover:text-black hover:bg-light-gray/50{% endif %}">
                     <i class="fa-solid fa-weight-scale text-xs w-4 text-center"></i> Weights
                 </a>
+                <a href="{% url 'dashboard:usermeal_list' %}" class="flex items-center gap-3 px-3 py-2.5 rounded text-sm {% if 'usermeal' in request.resolver_match.url_name %}bg-black text-white{% else %}text-gray hover:text-black hover:bg-light-gray/50{% endif %}">
+                    <i class="fa-solid fa-bowl-food text-xs w-4 text-center"></i> Meals
+                </a>
                 {% endif %}
                 {% if user.is_staff %}
                 <div class="pt-4 mt-4 border-t border-light-gray">
@@ -152,6 +155,9 @@
                 {% else %}
                 <a href="{% url 'dashboard:weight_list' %}" class="flex items-center gap-3 px-3 py-2 rounded text-sm {% if 'weight' in request.resolver_match.url_name %}bg-black text-white{% else %}text-gray hover:text-black hover:bg-light-gray/50{% endif %} transition-colors">
                     <i class="fa-solid fa-weight-scale text-xs w-4 text-center"></i> Weights
+                </a>
+                <a href="{% url 'dashboard:usermeal_list' %}" class="flex items-center gap-3 px-3 py-2 rounded text-sm {% if 'usermeal' in request.resolver_match.url_name %}bg-black text-white{% else %}text-gray hover:text-black hover:bg-light-gray/50{% endif %} transition-colors">
+                    <i class="fa-solid fa-bowl-food text-xs w-4 text-center"></i> Meals
                 </a>
                 {% endif %}
                 {% if user.is_staff %}
@@ -245,6 +251,34 @@
                             </button>
                         </div>
                     {% endfor %}
+                {% endif %}
+
+                {% if weight_reminder %}
+                <div class="mb-6 flex items-start gap-3 bg-[#fafafa] border border-light-gray rounded p-4">
+                    <div class="w-8 h-8 bg-black rounded flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <i class="fa-solid fa-scale-balanced text-white text-xs"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-black">Weight log overdue</p>
+                        <p class="text-xs text-gray mt-0.5">
+                            {% if weight_reminder.last_logged %}
+                                You haven't logged your weight in <strong>{{ weight_reminder.days_since }} day{{ weight_reminder.days_since|pluralize }}</strong>.
+                            {% else %}
+                                You haven't logged your weight yet.
+                            {% endif %}
+                            Your reminder is set to every {{ weight_reminder.threshold_days }} day{{ weight_reminder.threshold_days|pluralize }} without a new entry.
+                        </p>
+                    </div>
+                    {% if 'weight' in request.resolver_match.url_name %}
+                    <a href="{% url 'dashboard:weight_create' %}" class="text-xs px-3 py-1.5 bg-black text-white rounded hover:bg-dark-gray transition-colors flex-shrink-0 whitespace-nowrap">
+                        New entry
+                    </a>
+                    {% else %}
+                    <a href="{% url 'dashboard:weight_list' %}" class="text-xs px-3 py-1.5 bg-black text-white rounded hover:bg-dark-gray transition-colors flex-shrink-0 whitespace-nowrap">
+                        Log weight
+                    </a>
+                    {% endif %}
+                </div>
                 {% endif %}
 
                 {% block dashboard_content %}{% endblock %}

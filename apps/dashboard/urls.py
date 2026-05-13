@@ -15,7 +15,7 @@ urlpatterns = [
     path('subscription/trial/', views.start_trial, name='start_trial'),
     path('profile/upload-pic/', views.upload_profile_pic, name='upload_profile_pic'),
     path('profile/remove-pic/', views.remove_profile_pic, name='remove_profile_pic'),
-    # Weight CRUD (admin only)
+    # Weight (own entries for regular users; staff see all)
     path('weight/', views.weight_list, name='weight_list'),
     path('weight/new/', views.weight_create, name='weight_create'),
     path('weight/<int:pk>/', views.weight_detail, name='weight_detail'),
@@ -37,7 +37,7 @@ urlpatterns = [
     path('meals/<int:meal_pk>/entries/new/', views.entry_create, name='entry_create'),
     path('meals/entries/<int:pk>/edit/', views.entry_edit, name='entry_edit'),
     path('meals/entries/<int:pk>/delete/', views.entry_delete, name='entry_delete'),
-    # User Meal CRUD (admin only)
+    # User Meal CRUD (own meals for regular users; staff see all)
     path('user-meals/', views.usermeal_list, name='usermeal_list'),
     path('user-meals/new/', views.usermeal_create, name='usermeal_create'),
     path('user-meals/<int:pk>/', views.usermeal_detail, name='usermeal_detail'),

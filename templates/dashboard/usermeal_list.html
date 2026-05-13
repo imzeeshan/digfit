@@ -8,7 +8,7 @@
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
             <h2 class="text-xl font-medium text-black">User Meals</h2>
-            <p class="mt-1 text-sm text-gray">Meals actually taken by users.</p>
+            <p class="mt-1 text-sm text-gray">{% if user.is_staff %}Meals logged by all users.{% else %}Log the meals you actually eat.{% endif %}</p>
         </div>
         <a href="{% url 'dashboard:usermeal_create' %}" class="inline-flex items-center gap-2 text-sm px-5 py-2 bg-black text-white rounded hover:bg-dark-gray transition-colors">
             <i class="fa-solid fa-plus text-xs"></i> Record Meal
@@ -17,6 +17,7 @@
 
     <!-- Filters -->
     <form method="GET" class="flex flex-wrap items-end gap-3 mb-4">
+        {% if user.is_staff %}
         <div>
             <label class="block text-xs text-gray uppercase tracking-wider mb-1">User</label>
             <select name="user" class="border border-light-gray rounded px-3 py-2 text-sm bg-white focus:border-black focus:outline-none">
@@ -26,6 +27,7 @@
                 {% endfor %}
             </select>
         </div>
+        {% endif %}
         <div>
             <label class="block text-xs text-gray uppercase tracking-wider mb-1">Type</label>
             <select name="meal_type" class="border border-light-gray rounded px-3 py-2 text-sm bg-white focus:border-black focus:outline-none">
@@ -44,7 +46,9 @@
             <table class="w-full text-sm">
                 <thead>
                     <tr class="border-b border-light-gray bg-[#fafafa]">
+                        {% if user.is_staff %}
                         <th class="text-left px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium">User</th>
+                        {% endif %}
                         <th class="text-left px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium">Title</th>
                         <th class="text-left px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium hidden sm:table-cell">Type</th>
                         <th class="text-left px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium hidden md:table-cell">Time</th>
@@ -55,7 +59,9 @@
                 <tbody class="divide-y divide-light-gray">
                     {% for entry in page %}
                     <tr class="hover:bg-[#fafafa] transition-colors">
+                        {% if user.is_staff %}
                         <td class="px-5 py-3 text-black">{{ entry.user.email }}</td>
+                        {% endif %}
                         <td class="px-5 py-3 text-black">{{ entry.title|truncatechars:35 }}</td>
                         <td class="px-5 py-3 hidden sm:table-cell">
                             <span class="inline-block px-2 py-0.5 text-xs rounded bg-[#fafafa] border border-light-gray text-gray">{{ entry.get_meal_type_display }}</span>
@@ -70,7 +76,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="px-5 py-8 text-center text-gray">No user meals recorded.</td>
+                        <td colspan="{% if user.is_staff %}6{% else %}5{% endif %}" class="px-5 py-8 text-center text-gray">No user meals recorded.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

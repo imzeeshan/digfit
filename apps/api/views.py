@@ -1,9 +1,11 @@
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.routers import APIRootView
 
 from apps.dashboard.meal_plan_llm import (
     compare_meal_plan_to_logged_meals,
@@ -25,6 +27,20 @@ from .serializers import (
 )
 
 User = get_user_model()
+
+
+class DigFitAPIRootView(APIRootView):
+    """DRF default root hyperlinks plus explicit URLs for routes not on the router."""
+
+    def get(self, request, *args, **kwargs):
+        response = super().get(request, *args, **kwargs)
+        data = getattr(response, 'data', None)
+        if not isinstance(data, dict):
+            return response
+        merged = dict(data)
+        merged['auth-login'] = request.build_absolute_uri(reverse('api-auth-login'))
+        merged['auth-logout'] = request.build_absolute_uri(reverse('api-auth-logout'))
+        return Response(merged)
 
 
 def _meal_plan_compare_response(plan, *, extra=None):

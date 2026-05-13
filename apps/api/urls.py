@@ -3,7 +3,12 @@ from rest_framework.routers import DefaultRouter
 
 from . import auth_views, views
 
-router = DefaultRouter()
+
+class DigFitRouter(DefaultRouter):
+    APIRootView = views.DigFitAPIRootView
+
+
+router = DigFitRouter()
 router.register('users', views.UserViewSet, basename='user')
 router.register('plans', views.SubscriptionPlanViewSet, basename='plan')
 router.register('settings', views.UserSettingsViewSet, basename='settings')

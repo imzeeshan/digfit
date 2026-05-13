@@ -43,6 +43,18 @@ class AuthTokenApiTests(TestCase):
         self.assertEqual(response.status_code, 204)
         self.assertFalse(Token.objects.filter(user=self.user).exists())
 
+    def test_api_root_lists_collections_and_auth(self):
+        self.client.force_login(self.user)
+        response = self.client.get('/api/')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn('users', data)
+        self.assertIn('meal-plans', data)
+        self.assertIn('auth-login', data)
+        self.assertIn('auth-logout', data)
+        self.assertTrue(str(data['auth-login']).rstrip('/').endswith('/api/auth/login'))
+        self.assertTrue(str(data['auth-logout']).rstrip('/').endswith('/api/auth/logout'))
+
 
 class ResolveMealPlanForComparisonTests(TestCase):
     def setUp(self):

@@ -76,6 +76,10 @@ All list endpoints are paginated.
 
 ## Endpoints
 
+### API root (`GET /api/`)
+
+Returns JSON hyperlinks for each **viewset list** URL (e.g. `users`, `meal-plans`, `weights`) and for **`auth-login`** / **`auth-logout`**. Custom `@action` routes (such as `meal-plans/.../compare-meals/`) are **not** duplicated here; they live under their resource’s URL patterns (see tables below and the browsable API). Requires authentication like other API routes unless you use the browsable HTML with an active session.
+
 ### Auth (API token)
 
 | Method | URL | Permission | Description |

@@ -19,7 +19,8 @@ Django app for DigFit. Auth, payments, dashboard, and deployment — all wired u
 - **Stripe subscriptions** — Payment Methods API, webhooks, subscription status tracking
 - **User dashboard** — sidebar nav, profile (with avatar upload), settings, notification preferences, API keys
 - **Subscription plans** — admin-managed plans with trial support
-- **REST API** — Django REST Framework with session + token auth
+- **REST API** — Django REST Framework with session + token auth (including **`/api/auth/login/`** for API tokens)
+- **Meal plan vs logs (LLM)** — compare structured meal plans to logged `UserMeal` entries via Ollama (`chat_for_user`, user-specific host/model from settings)
 - **MCP server** — django-drf-mcp auto-exposes API endpoints as MCP tools for AI assistants
 - **Ollama integration** — local LLM tool-calling via MCP (chat with your API using llama3.1, qwen2.5, etc.)
 - **Audit trails** — automatic change tracking on all models (django-auditlog)
@@ -31,7 +32,7 @@ Django app for DigFit. Auth, payments, dashboard, and deployment — all wired u
 - **Static files** — WhiteNoise, no nginx needed
 - **Deployment** — Gunicorn + Procfile, ready for Railway/Heroku/VPS
 - **Linting** — Ruff with Django-specific rules
-- **16 tests** — landing pages, auth, dashboard, models
+- **Automated tests** — landing, auth, API token login/logout, dashboard, models
 - **Seed data** — one command to populate demo data
 
 ## Tech stack
@@ -73,7 +74,7 @@ Visit **http://localhost:8000** — admin login: `admin@example.com` / `admin123
 | `make install` | Create virtualenv and install dependencies |
 | `make run` | Start development server |
 | `make migrate` | Run makemigrations + migrate |
-| `make test` | Run 16 tests |
+| `make test` | Run the test suite |
 | `make seed` | Populate demo data (admin + plans) |
 | `make lint` | Lint with ruff |
 | `make format` | Format with ruff |
@@ -98,15 +99,17 @@ dig_fit/
 │   │   ├── admin.py
 │   │   └── tests.py          # 6 tests
 │   ├── dashboard/            # Dashboard, profile, settings
-│   │   ├── models.py         # SubscriptionPlan, UserSettings
+│   │   ├── models.py         # MealPlan, UserMeal, UserSettings, etc.
+│   │   ├── meal_plan_llm.py  # LLM context + compare (Ollama)
 │   │   ├── views.py          # dashboard, profile, settings, plans
 │   │   ├── tasks.py          # Background email tasks
 │   │   ├── tests.py          # 6 tests
 │   │   └── management/commands/seed_data.py
 │   ├── api/                  # REST API + MCP
 │   │   ├── serializers.py    # DRF serializers
-│   │   ├── views.py          # ViewSets (users, plans, settings)
-│   │   └── urls.py           # Router-based URL config
+│   │   ├── auth_views.py     # POST /api/auth/login/, /logout/
+│   │   ├── views.py          # ViewSets (users, meal-plans, weights, …)
+│   │   └── urls.py           # Router + auth routes
 │   ├── subscriptions/        # Stripe integration
 │   │   ├── models.py         # StripeCustomer
 │   │   └── views.py          # checkout, webhooks
@@ -244,10 +247,32 @@ curl -X POST http://localhost:8000/api/auth/login/ \
   -d '{"email":"you@example.com","password":"your-password"}'
 ```
 
-**Token auth example:**
+**Token auth example** (`Authorization` must use the prefix **`Token`**, not `Bearer`):
 ```bash
 curl -H "Authorization: Token YOUR_TOKEN" http://localhost:8000/api/users/me/
 ```
+
+Full field lists and curl examples: **[API.md](API.md)**. Postman: **[DigFit_API.postman_collection.json](DigFit_API.postman_collection.json)**.
+
+### Meal plan vs logged meals (LLM compare)
+
+The API can ask a **local Ollama** model to compare what was **planned** (`MealPlan` + nested `MealEntry` rows, targets, foods) with what the user **actually logged** (`UserMeal` rows whose dates fall inside that plan’s `start_date`–`end_date`).
+
+| Piece | Location / behavior |
+|-------|------------------------|
+| Context + prompt | `apps/dashboard/meal_plan_llm.py` — `build_meal_comparison_context()`, `compare_meal_plan_to_logged_meals()` |
+| Ollama call | `core/ollama_client.py` — `chat_for_user()` uses the **plan owner’s** dashboard **UserSettings** (host/model), with `OLLAMA_HOST` / `OLLAMA_MODEL` as fallback |
+| Plan resolution (by user) | `resolve_meal_plan_for_user_comparison()` — prefers a plan whose dates include **today**, otherwise the latest plan by `start_date` |
+| HTTP | `MealPlanViewSet` in `apps/api/views.py` — `compare_meals_by_user` and `compare_meals` |
+
+**Endpoints** (empty JSON body; send `Authorization: Token <key>` on every request except login):
+
+- **`POST /api/meal-plans/by-user/{user_id}/compare-meals/`** — only needs a user id. Staff may use any id; regular users only their own. Response includes `user_id`, `meal_plan_selection` (`active_window` or `latest_by_start_date`), `analysis`, counts, and `date_range`. **404** if that user has no meal plan.
+- **`POST /api/meal-plans/{id}/compare-meals/`** — same comparison for one explicit meal plan id.
+
+**Failures:** **503** if Ollama is unreachable or errors (`error`: `llm_compare_failed`). Ensure Ollama is running and the model is pulled (see `OLLAMA_*` in **Environment variables**).
+
+**MCP:** Compare routes are exposed like other `/api/*` operations in `tools/list` (names follow the OpenAPI operation ids from drf-spectacular). **`POST /api/auth/login/`** is excluded from MCP tools in settings to avoid password-based tool calls through the MCP bridge.
 
 ## MCP (Model Context Protocol)
 

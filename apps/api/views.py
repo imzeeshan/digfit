@@ -1,9 +1,14 @@
 from django.contrib.auth import get_user_model
-from rest_framework import mixins, viewsets
+from django.shortcuts import get_object_or_404
+from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 
+from apps.dashboard.meal_plan_llm import (
+    compare_meal_plan_to_logged_meals,
+    resolve_meal_plan_for_user_comparison,
+)
 from apps.dashboard.models import Intervention, MealPlan, SubscriptionPlan, UserMeal, UserSettings, Weight
 from apps.subscriptions.models import StripeCustomer
 
@@ -20,6 +25,29 @@ from .serializers import (
 )
 
 User = get_user_model()
+
+
+def _meal_plan_compare_response(plan, *, extra=None):
+    """Run LLM compare and return a DRF Response (503 on Ollama failure)."""
+    extra = extra or {}
+    try:
+        analysis, ctx = compare_meal_plan_to_logged_meals(plan)
+    except Exception as exc:
+        return Response(
+            {'detail': str(exc), 'error': 'llm_compare_failed', **extra},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    stats = ctx.get('stats', {})
+    mp = ctx.get('meal_plan', {})
+    return Response(
+        {
+            'meal_plan_id': plan.pk,
+            'analysis': analysis,
+            'date_range': {'start': mp.get('start_date'), 'end': mp.get('end_date')},
+            **stats,
+            **extra,
+        }
+    )
 
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
@@ -142,6 +170,10 @@ class MealPlanViewSet(viewsets.ModelViewSet):
 
     Lookup by user (admin only):
         GET /api/meal-plans/by-user/<user_id>/
+
+    Compare plan vs logged meals by user (staff: any user; others: own user_id only):
+        POST /api/meal-plans/by-user/<user_id>/compare-meals/
+        Picks the plan whose dates include today, else the most recent plan by start_date.
     """
     serializer_class = MealPlanSerializer
     permission_classes = [IsAuthenticated]
@@ -158,6 +190,35 @@ class MealPlanViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
+    @action(
+        detail=False,
+        methods=['post'],
+        url_path=r'by-user/(?P<user_id>\d+)/compare-meals',
+        permission_classes=[IsAuthenticated],
+    )
+    def compare_meals_by_user(self, request, user_id=None):
+        """Compare the user's resolved meal plan to their UserMeals (same LLM as compare-meals on a plan)."""
+        if not request.user.is_staff and str(request.user.pk) != str(user_id):
+            return Response(
+                {'detail': 'You may only run this comparison for your own user id.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        target = get_object_or_404(User, pk=user_id)
+        plan, selection = resolve_meal_plan_for_user_comparison(target)
+        if plan is None:
+            return Response(
+                {
+                    'detail': 'No meal plan found for this user.',
+                    'error': 'no_meal_plan',
+                    'user_id': int(user_id),
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return _meal_plan_compare_response(
+            plan,
+            extra={'user_id': int(user_id), 'meal_plan_selection': selection},
+        )
+
     @action(detail=False, methods=['get'], url_path=r'by-user/(?P<user_id>\d+)',
             permission_classes=[IsAdminUser])
     def by_user(self, request, user_id=None):
@@ -165,6 +226,12 @@ class MealPlanViewSet(viewsets.ModelViewSet):
         plans = MealPlan.objects.for_user(user_id)
         serializer = self.get_serializer(plans, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='compare-meals')
+    def compare_meals(self, request, pk=None):
+        """Compare planned meal entries with UserMeals logged in the plan date window (Ollama)."""
+        plan = self.get_object()
+        return _meal_plan_compare_response(plan)
 
 
 class InterventionViewSet(viewsets.ModelViewSet):

@@ -1,6 +1,7 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from . import views
+from . import auth_views, views
 
 router = DefaultRouter()
 router.register('users', views.UserViewSet, basename='user')
@@ -12,4 +13,7 @@ router.register('meal-plans', views.MealPlanViewSet, basename='meal-plan')
 router.register('user-meals', views.UserMealViewSet, basename='user-meal')
 router.register('interventions', views.InterventionViewSet, basename='intervention')
 
-urlpatterns = router.urls
+urlpatterns = [
+    path('auth/login/', auth_views.LoginView.as_view(), name='api-auth-login'),
+    path('auth/logout/', auth_views.LogoutView.as_view(), name='api-auth-logout'),
+] + router.urls

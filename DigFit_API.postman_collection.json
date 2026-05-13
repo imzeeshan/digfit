@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "digfit-api-collection",
     "name": "DigFit API",
-    "description": "REST API for DigFit (Django REST Framework).\n\n**Setup:** Import this file in Postman. Set collection variables `base_url` (default `http://127.0.0.1:8000`) and `api_token` (DRF token from dashboard or admin). Collection auth sends `Authorization: Token {{api_token}}`.\n\n**Alternative:** MCP internal requests use the `X-MCP-Token` header (see `DJANGO_MCP` / `MCP_INTERNAL_TOKEN` in settings); Postman does not set this by default.\n\n**Roles:** Admin-only routes require `is_staff`. See `API.md` for field lists and examples.",
+    "description": "REST API for DigFit (Django REST Framework).\n\n**Setup:** Import this file in Postman. Set `base_url` (default `http://127.0.0.1:8000`). Run **Auth → Login** first; copy `token` into collection variable **`api_token`**. Collection auth sends `Authorization: Token {{api_token}}` on other requests. **Do not use Postman’s “Bearer Token” auth** — DRF expects the header `Authorization: Token <key>` exactly. For Login, the request uses **no auth** so the body is not overridden.\n\n**Alternative:** MCP internal requests use the `X-MCP-Token` header (see `DJANGO_MCP` / `MCP_INTERNAL_TOKEN` in settings); Postman does not set this by default.\n\n**Roles:** Admin-only routes require `is_staff`. See `API.md` for field lists and examples.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -68,6 +68,41 @@
     }
   ],
   "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login (get API token)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/auth/login/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"you@example.com\",\n  \"password\": \"your-password\"\n}"
+            },
+            "description": "Public endpoint. Copy `token` from the response into the collection variable `api_token`, then use other folders."
+          }
+        },
+        {
+          "name": "Logout (delete API token)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/auth/logout/"
+          }
+        }
+      ]
+    },
     {
       "name": "API root",
       "item": [
@@ -503,6 +538,14 @@
               "mode": "raw",
               "raw": "{\n  \"notes\": \"Quick note\"\n}"
             }
+          }
+        },
+        {
+          "name": "Compare meal plan vs logged meals by user id (LLM)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/meal-plans/by-user/{{user_id}}/compare-meals/"
           }
         },
         {

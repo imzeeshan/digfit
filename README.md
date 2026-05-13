@@ -213,10 +213,12 @@ Every create, update, and delete across all models is automatically logged using
 
 ## REST API
 
-All endpoints require authentication (session or token). The API root is at `/api/`.
+All endpoints except **`POST /api/auth/login/`** require authentication (session or token). The API root is at `/api/`.
 
 | Endpoint | Methods | Description |
 |----------|---------|-------------|
+| `/api/auth/login/` | POST | Email + password → API token (no auth) |
+| `/api/auth/logout/` | POST | Revoke current API token |
 | `/api/users/` | GET | List users (admin: all, user: self) |
 | `/api/users/me/` | GET, PATCH | Current user profile |
 | `/api/plans/` | GET | Active subscription plans |
@@ -228,10 +230,19 @@ All endpoints require authentication (session or token). The API root is at `/ap
 | `/api/weights/{id}/` | GET, PUT, PATCH, DELETE | Weight detail |
 | `/api/meal-plans/` | GET, POST | Meal plans (admin: all, user: own) |
 | `/api/meal-plans/{id}/` | GET, PUT, PATCH, DELETE | Meal plan detail |
+| `/api/meal-plans/by-user/{user_id}/compare-meals/` | POST | LLM: resolve plan for user, compare vs logged meals |
+| `/api/meal-plans/{id}/compare-meals/` | POST | LLM: compare that plan vs logged meals in range |
 | `/api/user-meals/` | GET, POST | User meals (admin: all, user: own) |
 | `/api/user-meals/{id}/` | GET, PUT, PATCH, DELETE | User meal detail |
 | `/api/interventions/` | GET, POST | Interventions (admin: all, user: own) |
 | `/api/interventions/{id}/` | GET, PUT, PATCH, DELETE | Intervention detail |
+
+**Obtain a token (login):**
+```bash
+curl -X POST http://localhost:8000/api/auth/login/ \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","password":"your-password"}'
+```
 
 **Token auth example:**
 ```bash

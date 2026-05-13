@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'crispy_forms',
     'crispy_tailwind',
     'rest_framework',
+    'rest_framework.authtoken',
     'django_drf_mcp',
     'auditlog',
 
@@ -238,7 +239,7 @@ DJANGO_MCP = {
     'NAME': 'digfit-api',
     'BASE_URL': 'http://localhost:8000',
     'INCLUDE': ['*:/api/*'],
-    'EXCLUDE': ['DELETE:/api/users/*'],
+    'EXCLUDE': ['DELETE:/api/users/*', 'POST:/api/auth/login/*'],
     'INTERNAL_TOKEN': os.getenv('MCP_INTERNAL_TOKEN', 'digfit-mcp-local-dev-token'),
 }
 

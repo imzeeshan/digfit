@@ -43,10 +43,14 @@ def chat(
     model: str | None = None,
     host: str | None = None,
     stream: bool = False,
+    options: dict[str, Any] | None = None,
 ) -> Any | Iterator[Any]:
     """Chat completion (`messages` uses Ollama roles: user, assistant, system)."""
     client = get_client(host)
-    return client.chat(model=_model(model), messages=list(messages), stream=stream)
+    kwargs: dict[str, Any] = {'model': _model(model), 'messages': list(messages), 'stream': stream}
+    if options:
+        kwargs['options'] = options
+    return client.chat(**kwargs)
 
 
 def chat_for_user(
@@ -54,10 +58,11 @@ def chat_for_user(
     messages: Sequence[dict[str, Any]],
     *,
     stream: bool = False,
+    options: dict[str, Any] | None = None,
 ) -> Any | Iterator[Any]:
     """Chat using the signed-in user's Ollama host and model from dashboard settings."""
     host, model = _ollama_host_model_for_user(user)
-    return chat(messages, model=model, host=host, stream=stream)
+    return chat(messages, model=model, host=host, stream=stream, options=options)
 
 
 def generate(

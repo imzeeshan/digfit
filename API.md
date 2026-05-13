@@ -13,10 +13,38 @@ Every request must include one of the following:
 | Method | Header / Mechanism | Notes |
 |---|---|---|
 | **Session** | Django session cookie | Automatic after browser login |
-| **Token** | `Authorization: Token <key>` | DRF token auth — generate via admin or API |
+| **Token** | `Authorization: Token <key>` | DRF token — obtain via **`POST /api/auth/login/`** (see below). **Use the word `Token`, not `Bearer`.** Postman’s “Bearer Token” type will not work. |
 | **MCP Internal** | `X-MCP-Token: <token>` | Used by the MCP chat bridge; authenticates as superuser |
 
-Unauthenticated requests receive `401 Unauthorized`.
+Unauthenticated requests receive `401 Unauthorized` (except **`POST /api/auth/login/`**, which is public).
+
+### Obtain token (login)
+
+`POST /api/auth/login/` — **no auth header.** JSON body:
+
+| Field | Type | Required |
+|---|---|---|
+| `email` | string | Yes |
+| `password` | string | Yes |
+
+**Success (200):** `{ "token": "<40-char hex key>" }` — use as `Authorization: Token <key>` on subsequent requests. A new row in `authtoken_token` is created if the user had none; otherwise the existing key is returned.
+
+**Failure (400):** invalid credentials or validation errors.
+
+```bash
+curl -X POST http://localhost:8000/api/auth/login/ \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","password":"your-password"}'
+```
+
+### Logout (invalidate token)
+
+`POST /api/auth/logout/` — requires `Authorization: Token <key>`. Deletes that user’s token. **204** with empty body on success.
+
+```bash
+curl -X POST http://localhost:8000/api/auth/logout/ \
+  -H "Authorization: Token <your-token>"
+```
 
 ---
 
@@ -47,6 +75,13 @@ All list endpoints are paginated.
 ---
 
 ## Endpoints
+
+### Auth (API token)
+
+| Method | URL | Permission | Description |
+|---|---|---|---|
+| `POST` | `/api/auth/login/` | Public | Email + password → `{ "token": "…" }` |
+| `POST` | `/api/auth/logout/` | Token | Deletes the caller’s token (204) |
 
 ### Users
 
@@ -258,6 +293,8 @@ Full CRUD with nested meal entries. `user` is auto-set on create.
 | `PATCH` | `/api/meal-plans/{id}/` | Authenticated | Partial update |
 | `DELETE` | `/api/meal-plans/{id}/` | Authenticated | Delete |
 | `GET` | `/api/meal-plans/by-user/{user_id}/` | Admin | All plans for a specific user |
+| `POST` | `/api/meal-plans/by-user/{user_id}/compare-meals/` | Authenticated | LLM comparison without a plan id: resolves one plan for that user (dates containing today, else latest by `start_date`), then compares to `UserMeal` logs in that plan’s window. Staff: any `user_id`; others: only their own `user_id`. Empty body. |
+| `POST` | `/api/meal-plans/{id}/compare-meals/` | Authenticated | Same LLM comparison for a **specific** meal plan id (Ollama; plan owner’s host/model). Empty body. |
 
 #### Fields
 
@@ -337,6 +374,24 @@ curl -X POST /api/meal-plans/ \
     "goal": "Lose 2 lbs"
   }'
 ```
+
+#### Example: compare by user id (recommended)
+
+```bash
+curl -X POST /api/meal-plans/by-user/3/compare-meals/ \
+  -H "Authorization: Token <key>"
+```
+
+Response matches the plan-scoped endpoint, plus `user_id` and `meal_plan_selection` (`active_window` or `latest_by_start_date`).
+
+#### Example: compare a specific meal plan by id
+
+```bash
+curl -X POST /api/meal-plans/42/compare-meals/ \
+  -H "Authorization: Token <key>"
+```
+
+Response includes `analysis` (plain text from the model) plus `planned_entry_count`, `actual_meal_count`, `actual_total_calories_logged`, `planned_sum_calories_from_entries`, and `date_range`.
 
 ---
 

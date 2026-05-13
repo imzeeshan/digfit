@@ -15,7 +15,8 @@
     <form method="POST" class="bg-white border border-light-gray rounded">
         {% csrf_token %}
         <div class="divide-y divide-light-gray">
-            <!-- User -->
+            <!-- User (staff assigns entry to a user) -->
+            {% if user.is_staff %}
             <div class="px-6 py-4">
                 <label for="user" class="block text-xs text-gray uppercase tracking-wider mb-1.5">User</label>
                 <select id="user" name="user" required
@@ -26,6 +27,7 @@
                     {% endfor %}
                 </select>
             </div>
+            {% endif %}
 
             <!-- Datetime -->
             <div class="px-6 py-4">

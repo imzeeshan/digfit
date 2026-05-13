@@ -8,7 +8,7 @@
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
             <h2 class="text-xl font-medium text-black">Weight Entries</h2>
-            <p class="mt-1 text-sm text-gray">Track and manage user weight records.</p>
+            <p class="mt-1 text-sm text-gray">{% if user.is_staff %}Track and manage user weight records.{% else %}Track your weight over time.{% endif %}</p>
         </div>
         <a href="{% url 'dashboard:weight_create' %}" class="inline-flex items-center gap-2 text-sm px-5 py-2 bg-black text-white rounded hover:bg-dark-gray transition-colors">
             <i class="fa-solid fa-plus text-xs"></i> New Entry
@@ -17,6 +17,7 @@
 
     <!-- Filters -->
     <form method="GET" class="flex flex-wrap items-end gap-3 mb-4">
+        {% if user.is_staff %}
         <div>
             <label class="block text-xs text-gray uppercase tracking-wider mb-1">User</label>
             <select name="user" class="border border-light-gray rounded px-3 py-2 text-sm bg-white focus:border-black focus:outline-none">
@@ -26,6 +27,7 @@
                 {% endfor %}
             </select>
         </div>
+        {% endif %}
         <div>
             <label class="block text-xs text-gray uppercase tracking-wider mb-1">Source</label>
             <select name="source" class="border border-light-gray rounded px-3 py-2 text-sm bg-white focus:border-black focus:outline-none">
@@ -44,7 +46,9 @@
             <table class="w-full text-sm">
                 <thead>
                     <tr class="border-b border-light-gray bg-[#fafafa]">
+                        {% if user.is_staff %}
                         <th class="text-left px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium">User</th>
+                        {% endif %}
                         <th class="text-left px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium">Date &amp; Time</th>
                         <th class="text-right px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium">Weight (lbs)</th>
                         <th class="text-left px-5 py-3 text-xs text-gray uppercase tracking-wider font-medium">Source</th>
@@ -54,7 +58,9 @@
                 <tbody class="divide-y divide-light-gray">
                     {% for entry in page %}
                     <tr class="hover:bg-[#fafafa] transition-colors">
+                        {% if user.is_staff %}
                         <td class="px-5 py-3 text-black">{{ entry.user.email }}</td>
+                        {% endif %}
                         <td class="px-5 py-3 text-gray">{{ entry.datetime|date:"M d, Y g:i A" }}</td>
                         <td class="px-5 py-3 text-black text-right font-mono">{{ entry.value }}</td>
                         <td class="px-5 py-3">
@@ -68,7 +74,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="px-5 py-8 text-center text-gray">No weight entries found.</td>
+                        <td colspan="{% if user.is_staff %}5{% else %}4{% endif %}" class="px-5 py-8 text-center text-gray">No weight entries found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

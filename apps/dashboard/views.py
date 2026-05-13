@@ -276,8 +276,12 @@ def remove_profile_pic(request):
 User = get_user_model()
 
 
-def _parse_weight_form(request):
-    """Extract and validate weight form fields. Returns (data, errors)."""
+def _parse_weight_form(request, *, forced_user=None):
+    """Extract and validate weight form fields. Returns (data, errors).
+
+    If forced_user is set (e.g. regular user logging own weight), that user is used
+    and the POST ``user`` field is ignored.
+    """
     errors = []
     user_id = request.POST.get('user')
     dt_str = request.POST.get('datetime', '').strip()
@@ -286,7 +290,9 @@ def _parse_weight_form(request):
     metadata_str = request.POST.get('metadata', '').strip() or '{}'
 
     user_obj = None
-    if user_id:
+    if forced_user is not None:
+        user_obj = forced_user
+    elif user_id:
         try:
             user_obj = User.objects.get(pk=user_id)
         except User.DoesNotExist:
@@ -334,14 +340,18 @@ def _parse_weight_form(request):
     }, errors
 
 
-@staff_member_required
+@login_required
 @require_http_methods(['GET'])
 def weight_list(request):
-    qs = Weight.objects.select_related('user').all()
-
-    user_filter = request.GET.get('user')
-    if user_filter:
-        qs = qs.filter(user_id=user_filter)
+    qs = Weight.objects.select_related('user')
+    if request.user.is_staff:
+        qs = qs.all()
+        user_filter = request.GET.get('user')
+        if user_filter:
+            qs = qs.filter(user_id=user_filter)
+    else:
+        qs = qs.filter(user=request.user)
+        user_filter = None
 
     source_filter = request.GET.get('source')
     if source_filter:
@@ -352,7 +362,7 @@ def weight_list(request):
 
     context = {
         'page': page,
-        'users': User.objects.order_by('email'),
+        'users': User.objects.order_by('email') if request.user.is_staff else [],
         'sources': Weight.SOURCE_CHOICES,
         'current_user_filter': user_filter or '',
         'current_source_filter': source_filter or '',
@@ -360,18 +370,23 @@ def weight_list(request):
     return render(request, 'dashboard/weight_list.html', context)
 
 
-@staff_member_required
+@login_required
 @require_http_methods(['GET'])
 def weight_detail(request, pk):
-    entry = get_object_or_404(Weight.objects.select_related('user'), pk=pk)
+    qs = Weight.objects.select_related('user')
+    if not request.user.is_staff:
+        qs = qs.filter(user=request.user)
+    entry = get_object_or_404(qs, pk=pk)
     return render(request, 'dashboard/weight_detail.html', {'entry': entry})
 
 
-@staff_member_required
+@login_required
 @require_http_methods(['GET', 'POST'])
 def weight_create(request):
+    forced_user = None if request.user.is_staff else request.user
+
     if request.method == 'POST':
-        data, errors = _parse_weight_form(request)
+        data, errors = _parse_weight_form(request, forced_user=forced_user)
         if errors:
             for e in errors:
                 messages.error(request, e)
@@ -381,19 +396,24 @@ def weight_create(request):
             return redirect('dashboard:weight_list')
 
     context = {
-        'users': User.objects.order_by('email'),
+        'users': User.objects.order_by('email') if request.user.is_staff else [],
         'sources': Weight.SOURCE_CHOICES,
     }
     return render(request, 'dashboard/weight_form.html', context)
 
 
-@staff_member_required
+@login_required
 @require_http_methods(['GET', 'POST'])
 def weight_edit(request, pk):
-    entry = get_object_or_404(Weight, pk=pk)
+    qs = Weight.objects.all()
+    if not request.user.is_staff:
+        qs = qs.filter(user=request.user)
+    entry = get_object_or_404(qs, pk=pk)
+
+    forced_user = None if request.user.is_staff else request.user
 
     if request.method == 'POST':
-        data, errors = _parse_weight_form(request)
+        data, errors = _parse_weight_form(request, forced_user=forced_user)
         if errors:
             for e in errors:
                 messages.error(request, e)
@@ -406,16 +426,19 @@ def weight_edit(request, pk):
 
     context = {
         'entry': entry,
-        'users': User.objects.order_by('email'),
+        'users': User.objects.order_by('email') if request.user.is_staff else [],
         'sources': Weight.SOURCE_CHOICES,
     }
     return render(request, 'dashboard/weight_form.html', context)
 
 
-@staff_member_required
+@login_required
 @require_http_methods(['POST'])
 def weight_delete(request, pk):
-    entry = get_object_or_404(Weight, pk=pk)
+    qs = Weight.objects.all()
+    if not request.user.is_staff:
+        qs = qs.filter(user=request.user)
+    entry = get_object_or_404(qs, pk=pk)
     entry.delete()
     messages.success(request, 'Weight entry deleted.')
     return redirect('dashboard:weight_list')

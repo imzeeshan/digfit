@@ -62,12 +62,18 @@
                 <a href="{% url 'dashboard:profile' %}" class="flex items-center gap-3 px-3 py-2.5 rounded text-sm {% if request.resolver_match.url_name == 'profile' %}bg-black text-white{% else %}text-gray hover:text-black hover:bg-light-gray/50{% endif %}">
                     <i class="fa-solid fa-user text-xs w-4 text-center"></i> Profile
                 </a>
+                {% if user.is_staff %}
                 <a href="{% url 'dashboard:settings' %}" class="flex items-center gap-3 px-3 py-2.5 rounded text-sm {% if request.resolver_match.url_name == 'settings' %}bg-black text-white{% else %}text-gray hover:text-black hover:bg-light-gray/50{% endif %}">
                     <i class="fa-solid fa-gear text-xs w-4 text-center"></i> Settings
                 </a>
                 <a href="{% url 'dashboard:subscription_plans' %}" class="flex items-center gap-3 px-3 py-2.5 rounded text-sm {% if request.resolver_match.url_name == 'subscription_plans' %}bg-black text-white{% else %}text-gray hover:text-black hover:bg-light-gray/50{% endif %}">
                     <i class="fa-solid fa-credit-card text-xs w-4 text-center"></i> Plans
                 </a>
+                {% else %}
+                <a href="{% url 'dashboard:weight_list' %}" class="flex items-center gap-3 px-3 py-2.5 rounded text-sm {% if 'weight' in request.resolver_match.url_name %}bg-black text-white{% else %}text-gray hover:text-black hover:bg-light-gray/50{% endif %}">
+                    <i class="fa-solid fa-weight-scale text-xs w-4 text-center"></i> Weights
+                </a>
+                {% endif %}
                 {% if user.is_staff %}
                 <div class="pt-4 mt-4 border-t border-light-gray">
                     <p class="px-3 mb-1 text-[10px] text-gray uppercase tracking-widest">Admin</p>
@@ -136,12 +142,18 @@
                 <a href="{% url 'dashboard:profile' %}" class="flex items-center gap-3 px-3 py-2 rounded text-sm {% if request.resolver_match.url_name == 'profile' %}bg-black text-white{% else %}text-gray hover:text-black hover:bg-light-gray/50{% endif %} transition-colors">
                     <i class="fa-solid fa-user text-xs w-4 text-center"></i> Profile
                 </a>
+                {% if user.is_staff %}
                 <a href="{% url 'dashboard:settings' %}" class="flex items-center gap-3 px-3 py-2 rounded text-sm {% if request.resolver_match.url_name == 'settings' %}bg-black text-white{% else %}text-gray hover:text-black hover:bg-light-gray/50{% endif %} transition-colors">
                     <i class="fa-solid fa-gear text-xs w-4 text-center"></i> Settings
                 </a>
                 <a href="{% url 'dashboard:subscription_plans' %}" class="flex items-center gap-3 px-3 py-2 rounded text-sm {% if request.resolver_match.url_name == 'subscription_plans' %}bg-black text-white{% else %}text-gray hover:text-black hover:bg-light-gray/50{% endif %} transition-colors">
                     <i class="fa-solid fa-credit-card text-xs w-4 text-center"></i> Plans
                 </a>
+                {% else %}
+                <a href="{% url 'dashboard:weight_list' %}" class="flex items-center gap-3 px-3 py-2 rounded text-sm {% if 'weight' in request.resolver_match.url_name %}bg-black text-white{% else %}text-gray hover:text-black hover:bg-light-gray/50{% endif %} transition-colors">
+                    <i class="fa-solid fa-weight-scale text-xs w-4 text-center"></i> Weights
+                </a>
+                {% endif %}
                 {% if user.is_staff %}
                 <div class="pt-4 mt-4 border-t border-light-gray">
                     <p class="px-3 mb-1 text-[10px] text-gray uppercase tracking-widest">Admin</p>

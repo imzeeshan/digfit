@@ -1,0 +1,685 @@
+{
+  "info": {
+    "_postman_id": "digfit-api-collection",
+    "name": "DigFit API",
+    "description": "REST API for DigFit (Django REST Framework).\n\n**Setup:** Import this file in Postman. Set collection variables `base_url` (default `http://127.0.0.1:8000`) and `api_token` (DRF token from dashboard or admin). Collection auth sends `Authorization: Token {{api_token}}`.\n\n**Alternative:** MCP internal requests use the `X-MCP-Token` header (see `DJANGO_MCP` / `MCP_INTERNAL_TOKEN` in settings); Postman does not set this by default.\n\n**Roles:** Admin-only routes require `is_staff`. See `API.md` for field lists and examples.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "Authorization",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "Token {{api_token}}",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "api_token",
+      "value": ""
+    },
+    {
+      "key": "plan_slug",
+      "value": "starter"
+    },
+    {
+      "key": "user_id",
+      "value": "1"
+    },
+    {
+      "key": "settings_id",
+      "value": "1"
+    },
+    {
+      "key": "weight_id",
+      "value": "1"
+    },
+    {
+      "key": "meal_plan_id",
+      "value": "1"
+    },
+    {
+      "key": "user_meal_id",
+      "value": "1"
+    },
+    {
+      "key": "intervention_id",
+      "value": "1"
+    },
+    {
+      "key": "stripe_customer_id",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "API root",
+      "item": [
+        {
+          "name": "List API root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/",
+            "description": "Hyperlinked list of registered endpoints."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "List users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/users/"
+          }
+        },
+        {
+          "name": "Retrieve user",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/users/{{user_id}}/"
+          }
+        },
+        {
+          "name": "Get current user (me)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/users/me/"
+          }
+        },
+        {
+          "name": "Update current user (me)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/users/me/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Doe\",\n  \"date_of_birth\": \"1990-06-15\",\n  \"gender\": \"\",\n  \"metadata\": {}\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Subscription plans",
+      "item": [
+        {
+          "name": "List plans",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/plans/"
+          }
+        },
+        {
+          "name": "Retrieve plan by slug",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/plans/{{plan_slug}}/"
+          }
+        },
+        {
+          "name": "Create plan (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/plans/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Pro\",\n  \"slug\": \"pro-plan\",\n  \"description\": \"Full access\",\n  \"price\": \"29.99\",\n  \"interval\": \"monthly\",\n  \"features\": [\n    \"feature_a\",\n    \"feature_b\"\n  ],\n  \"is_active\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Full update plan (admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/plans/{{plan_slug}}/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Pro\",\n  \"slug\": \"{{plan_slug}}\",\n  \"description\": \"Updated\",\n  \"price\": \"29.99\",\n  \"interval\": \"monthly\",\n  \"features\": [],\n  \"is_active\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Partial update plan (admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/plans/{{plan_slug}}/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_active\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete plan (admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/api/plans/{{plan_slug}}/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "User settings",
+      "item": [
+        {
+          "name": "List settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/settings/"
+          }
+        },
+        {
+          "name": "Retrieve settings by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/settings/{{settings_id}}/"
+          }
+        },
+        {
+          "name": "Get my settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/settings/me/"
+          }
+        },
+        {
+          "name": "Update my settings",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/settings/me/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notify_comments\": false,\n  \"notify_updates\": true,\n  \"notify_marketing\": false,\n  \"weight_reminder_days\": 5\n}"
+            }
+          }
+        },
+        {
+          "name": "Full update settings by id",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/settings/{{settings_id}}/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notify_comments\": false,\n  \"notify_updates\": false,\n  \"notify_marketing\": false,\n  \"weight_reminder_days\": 7\n}"
+            }
+          }
+        },
+        {
+          "name": "Partial update settings by id",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/settings/{{settings_id}}/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"weight_reminder_days\": 0\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Stripe customers (admin)",
+      "item": [
+        {
+          "name": "List stripe customers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/stripe-customers/"
+          }
+        },
+        {
+          "name": "Retrieve stripe customer",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/stripe-customers/{{stripe_customer_id}}/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Weights",
+      "item": [
+        {
+          "name": "List weights",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/weights/"
+          }
+        },
+        {
+          "name": "List weights (admin filter by page)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/weights/?page=1"
+          }
+        },
+        {
+          "name": "Weight reminder status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/weights/reminder/",
+            "description": "Returns overdue status for current user."
+          }
+        },
+        {
+          "name": "Retrieve weight",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/weights/{{weight_id}}/"
+          }
+        },
+        {
+          "name": "Create weight",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/weights/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"datetime\": \"2026-05-12T08:00:00Z\",\n  \"value\": \"175.50\",\n  \"source\": \"manual\",\n  \"metadata\": {}\n}"
+            }
+          }
+        },
+        {
+          "name": "Full update weight",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/weights/{{weight_id}}/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"datetime\": \"2026-05-12T08:00:00Z\",\n  \"value\": \"174.00\",\n  \"source\": \"manual\",\n  \"metadata\": {}\n}"
+            }
+          }
+        },
+        {
+          "name": "Partial update weight",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/weights/{{weight_id}}/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": \"173.25\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete weight",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/api/weights/{{weight_id}}/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Meal plans",
+      "item": [
+        {
+          "name": "List meal plans",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/meal-plans/"
+          }
+        },
+        {
+          "name": "List meal plans for user (admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/meal-plans/?user={{user_id}}"
+          }
+        },
+        {
+          "name": "Meal plans by user id (admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/meal-plans/by-user/{{user_id}}/"
+          }
+        },
+        {
+          "name": "Retrieve meal plan",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/meal-plans/{{meal_plan_id}}/"
+          }
+        },
+        {
+          "name": "Create meal plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/meal-plans/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Week 1 \\u2014 Cutting\",\n  \"start_date\": \"2026-05-01\",\n  \"end_date\": \"2026-05-07\",\n  \"daily_calorie_target\": 1800,\n  \"daily_protein_target\": \"150.00\",\n  \"daily_carbs_target\": \"200.00\",\n  \"daily_fat_target\": \"65.00\",\n  \"daily_water_target_ml\": 3000,\n  \"dietary_preference\": \"high_protein\",\n  \"allergies_restrictions\": [],\n  \"supplements\": [],\n  \"goal\": \"Lose 2 lbs\",\n  \"notes\": \"\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Full update meal plan",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/meal-plans/{{meal_plan_id}}/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Week 1 \\u2014 Cutting\",\n  \"start_date\": \"2026-05-01\",\n  \"end_date\": \"2026-05-07\",\n  \"daily_calorie_target\": 1800,\n  \"daily_protein_target\": \"150.00\",\n  \"daily_carbs_target\": \"200.00\",\n  \"daily_fat_target\": \"65.00\",\n  \"daily_water_target_ml\": 3000,\n  \"dietary_preference\": \"none\",\n  \"allergies_restrictions\": [],\n  \"supplements\": [],\n  \"goal\": \"\",\n  \"notes\": \"Updated\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Partial update meal plan",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/meal-plans/{{meal_plan_id}}/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Quick note\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete meal plan",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/api/meal-plans/{{meal_plan_id}}/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "User meals",
+      "item": [
+        {
+          "name": "List user meals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/user-meals/"
+          }
+        },
+        {
+          "name": "Retrieve user meal",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/user-meals/{{user_meal_id}}/"
+          }
+        },
+        {
+          "name": "Create user meal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/user-meals/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"meal_type\": \"lunch\",\n  \"title\": \"Grilled chicken salad\",\n  \"time_taken\": \"2026-05-12T12:30:00Z\",\n  \"description\": \"Mixed greens\",\n  \"calories\": 450,\n  \"metadata\": {}\n}"
+            }
+          }
+        },
+        {
+          "name": "Full update user meal",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/user-meals/{{user_meal_id}}/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"meal_type\": \"lunch\",\n  \"title\": \"Salad\",\n  \"time_taken\": \"2026-05-12T12:30:00Z\",\n  \"description\": \"\",\n  \"calories\": 400,\n  \"metadata\": {}\n}"
+            }
+          }
+        },
+        {
+          "name": "Partial update user meal",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/user-meals/{{user_meal_id}}/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"calories\": 420\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete user meal",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/api/user-meals/{{user_meal_id}}/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Interventions",
+      "item": [
+        {
+          "name": "List interventions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/interventions/"
+          }
+        },
+        {
+          "name": "Retrieve intervention",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/interventions/{{intervention_id}}/"
+          }
+        },
+        {
+          "name": "Create intervention",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/interventions/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"dietary\",\n  \"status\": \"pending\",\n  \"priority\": \"normal\",\n  \"title\": \"Increase protein\",\n  \"description\": \"Target 150g daily\",\n  \"trigger_source\": \"coach\",\n  \"target_metric\": \"protein_g\",\n  \"target_value\": \"150.00\",\n  \"current_value\": \"120.00\",\n  \"action_json\": {},\n  \"created_by\": \"admin\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Full update intervention",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/interventions/{{intervention_id}}/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"dietary\",\n  \"status\": \"active\",\n  \"priority\": \"high\",\n  \"title\": \"Increase protein\",\n  \"description\": \"Target 150g daily\",\n  \"trigger_source\": \"coach\",\n  \"target_metric\": \"protein_g\",\n  \"target_value\": \"150.00\",\n  \"current_value\": \"125.00\",\n  \"action_json\": {},\n  \"created_by\": \"admin\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Partial update intervention",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{base_url}}/api/interventions/{{intervention_id}}/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"completed\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete intervention",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/api/interventions/{{intervention_id}}/"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -293,7 +293,7 @@ Full CRUD with nested meal entries. `user` is auto-set on create.
 | `PATCH` | `/api/meal-plans/{id}/` | Authenticated | Partial update |
 | `DELETE` | `/api/meal-plans/{id}/` | Authenticated | Delete |
 | `GET` | `/api/meal-plans/by-user/{user_id}/` | Admin | All plans for a specific user |
-| `POST` | `/api/meal-plans/by-user/{user_id}/compare-meals/` | Authenticated | LLM comparison without a plan id: resolves one plan for that user (dates containing today, else latest by `start_date`), then compares to `UserMeal` logs in that plan’s window. Staff: any `user_id`; others: only their own `user_id`. Empty body. |
+| `POST` | `/api/meal-plans/by-user/{user_id}/compare-meals/` | Authenticated | LLM compare without a plan id: picks a plan (overlapping today, preferring most `MealEntry` rows; if in-window plans are empty shells, falls back to latest plan with entries), then compares to `UserMeal` in **that** plan’s date window. Staff: any `user_id`; others: own only. Empty body. |
 | `POST` | `/api/meal-plans/{id}/compare-meals/` | Authenticated | Same LLM comparison for a **specific** meal plan id (Ollama; plan owner’s host/model). Empty body. |
 
 #### Fields
@@ -382,7 +382,7 @@ curl -X POST /api/meal-plans/by-user/3/compare-meals/ \
   -H "Authorization: Token <key>"
 ```
 
-Response matches the plan-scoped endpoint, plus `user_id` and `meal_plan_selection` (`active_window` or `latest_by_start_date`).
+Response matches the plan-scoped endpoint, plus `user_id`, `meal_plan_title`, and `meal_plan_selection` (`active_window`, `fallback_latest_with_entries`, or `latest_by_start_date`).
 
 #### Example: compare a specific meal plan by id
 

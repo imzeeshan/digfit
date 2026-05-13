@@ -6,7 +6,7 @@ import json
 from decimal import Decimal
 from typing import Any
 
-from django.db.models import Sum
+from django.db.models import Count, Sum
 from django.utils import timezone
 
 from core.ollama_client import chat_for_user
@@ -97,6 +97,7 @@ _SYSTEM_PROMPT = """You are a nutrition coach assistant. You compare a structure
 
 Rules:
 - Use only the JSON data provided; do not invent foods or weights.
+- The object `meal_plan` is the single plan window being analyzed. If `stats.planned_entry_count` is 0, the per-meal row list `planned_entries` is empty in this payload: still use `daily_*_target`, `dietary_preference`, `goal`, and `notes` if present, and compare `actual_meals_in_plan_window` to those targets. Do **not** say there is "no meal plan in the database" or that the plan is "empty" in a global sense—say explicitly that **no per-meal structured entries** were provided in the data for this plan window (or that only targets/notes exist).
 - Compare timing/meal types loosely (same calendar day and meal type when relevant).
 - Note missing logs, extra meals, calorie drift vs plan/totals, and macro alignment when targets exist.
 - Give 3–6 concise, actionable suggestions (bullets OK).
@@ -104,18 +105,52 @@ Rules:
 
 
 def resolve_meal_plan_for_user_comparison(user) -> tuple[MealPlan | None, str | None]:
-    """Choose one plan for LLM compare: window containing today, else latest by start_date.
+    """Choose one plan for LLM compare.
 
-    Returns ``(plan, selection_reason)`` where ``selection_reason`` is
-    ``active_window`` or ``latest_by_start_date``, or ``(None, None)`` if the user has no plans.
+    Prefer a plan whose dates include **today** and that has **MealEntry** rows; if every
+    in-window plan is an empty shell (no entries), fall back to the most recent plan that
+    does have entries so the LLM is not fed an empty ``planned_entries`` when another plan
+    exists with structured meals.
+
+    Returns ``(plan, selection_reason)`` where ``selection_reason`` is one of:
+
+    - ``active_window`` — dates include today; chosen among overlapping plans by most entries
+      then latest ``start_date``.
+    - ``fallback_latest_with_entries`` — today fell inside only empty-shell plan(s); using the
+      latest plan (by ``start_date``) that has at least one entry instead.
+    - ``latest_by_start_date`` — no plan overlaps today; using best plan by entry count then
+      ``start_date``.
+
+    ``(None, None)`` if the user has no meal plans at all.
     """
     today = timezone.now().date()
-    qs = MealPlan.objects.filter(user=user).select_related('user').prefetch_related('entries')
-    current = qs.filter(start_date__lte=today, end_date__gte=today).order_by('-start_date').first()
-    if current:
-        return current, 'active_window'
-    latest = qs.order_by('-start_date').first()
-    if latest:
+    base = MealPlan.objects.filter(user=user).select_related('user')
+
+    overlapping = (
+        base.filter(start_date__lte=today, end_date__gte=today)
+        .annotate(meal_entry_count=Count('entries', distinct=True))
+        .order_by('-meal_entry_count', '-start_date')
+    )
+    best_overlap = overlapping.first()
+    if best_overlap is not None:
+        if best_overlap.meal_entry_count > 0:
+            return best_overlap, 'active_window'
+        filled = (
+            base.annotate(meal_entry_count=Count('entries', distinct=True))
+            .filter(meal_entry_count__gt=0)
+            .order_by('-start_date')
+            .first()
+        )
+        if filled is not None:
+            return filled, 'fallback_latest_with_entries'
+        return best_overlap, 'active_window'
+
+    latest = (
+        base.annotate(meal_entry_count=Count('entries', distinct=True))
+        .order_by('-meal_entry_count', '-start_date')
+        .first()
+    )
+    if latest is not None:
         return latest, 'latest_by_start_date'
     return None, None
 

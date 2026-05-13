@@ -262,12 +262,12 @@ The API can ask a **local Ollama** model to compare what was **planned** (`MealP
 |-------|------------------------|
 | Context + prompt | `apps/dashboard/meal_plan_llm.py` — `build_meal_comparison_context()`, `compare_meal_plan_to_logged_meals()` |
 | Ollama call | `core/ollama_client.py` — `chat_for_user()` uses the **plan owner’s** dashboard **UserSettings** (host/model), with `OLLAMA_HOST` / `OLLAMA_MODEL` as fallback |
-| Plan resolution (by user) | `resolve_meal_plan_for_user_comparison()` — prefers a plan whose dates include **today**, otherwise the latest plan by `start_date` |
+| Plan resolution (by user) | `resolve_meal_plan_for_user_comparison()` — among plans overlapping **today**, prefers the most **MealEntry** rows then latest `start_date`. If every in-window plan has **zero** entries, falls back to the latest plan that **does** have entries (`meal_plan_selection`: `fallback_latest_with_entries`) so the LLM is not fed an empty `planned_entries` when another plan has structured meals. If nothing overlaps today, picks best plan by entry count then `start_date`. |
 | HTTP | `MealPlanViewSet` in `apps/api/views.py` — `compare_meals_by_user` and `compare_meals` |
 
 **Endpoints** (empty JSON body; send `Authorization: Token <key>` on every request except login):
 
-- **`POST /api/meal-plans/by-user/{user_id}/compare-meals/`** — only needs a user id. Staff may use any id; regular users only their own. Response includes `user_id`, `meal_plan_selection` (`active_window` or `latest_by_start_date`), `analysis`, counts, and `date_range`. **404** if that user has no meal plan.
+- **`POST /api/meal-plans/by-user/{user_id}/compare-meals/`** — only needs a user id. Staff may use any id; regular users only their own. Response includes `user_id`, `meal_plan_title`, `meal_plan_selection` (`active_window`, `fallback_latest_with_entries`, or `latest_by_start_date`), `analysis`, counts, and `date_range`. **404** if that user has no meal plan.
 - **`POST /api/meal-plans/{id}/compare-meals/`** — same comparison for one explicit meal plan id.
 
 **Failures:** **503** if Ollama is unreachable or errors (`error`: `llm_compare_failed`). Ensure Ollama is running and the model is pulled (see `OLLAMA_*` in **Environment variables**).

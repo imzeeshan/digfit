@@ -42,6 +42,7 @@ def _meal_plan_compare_response(plan, *, extra=None):
     return Response(
         {
             'meal_plan_id': plan.pk,
+            'meal_plan_title': mp.get('title'),
             'analysis': analysis,
             'date_range': {'start': mp.get('start_date'), 'end': mp.get('end_date')},
             **stats,

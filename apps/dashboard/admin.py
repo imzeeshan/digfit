@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.contrib.admin import AdminSite
 from django.utils.translation import gettext_lazy as _
 
-from .models import Intervention, MealEntry, MealPlan, SubscriptionPlan, UserMeal, UserSettings, Weight
+from .models import Intervention, MealEntry, MealPlan, Notification, SubscriptionPlan, UserMeal, UserSettings, Weight
 
 
 class DashboardAdminSite(AdminSite):
@@ -28,6 +28,16 @@ class UserSettingsAdmin(AuditlogHistoryAdminMixin, admin.ModelAdmin):
     list_filter = ('subscription_status',)
     search_fields = ('user__email',)
     raw_id_fields = ('user',)
+    show_auditlog_history_link = True
+
+
+@admin.register(Notification)
+class NotificationAdmin(AuditlogHistoryAdminMixin, admin.ModelAdmin):
+    list_display = ('user', 'notification_type', 'title', 'is_dismissed', 'is_read', 'created_at')
+    list_filter = ('notification_type', 'is_dismissed', 'is_read')
+    search_fields = ('user__email', 'title')
+    raw_id_fields = ('user',)
+    ordering = ('-created_at',)
     show_auditlog_history_link = True
 
 

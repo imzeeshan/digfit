@@ -6,6 +6,7 @@
 <link nonce="{{ csp_nonce }}" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&display=swap">
 <style nonce="{{ csp_nonce }}">
     .font-accent { font-family: 'Playfair Display', serif; font-style: italic; }
+    [x-cloak] { display: none !important; }
 </style>
 {% endblock %}
 
@@ -28,6 +29,7 @@
             </div>
             <div class="hidden md:flex items-center gap-4">
                 {% if user.is_authenticated %}
+                    {% include "partials/notification_bell.html" with theme="green" %}
                     <a href="{% url 'dashboard:home' %}" class="text-sm text-gray-600 hover:text-green-700 transition-colors">Dashboard</a>
                     <a href="{% url 'account_logout' %}" class="text-sm text-gray-600 hover:text-green-700 transition-colors">Log out</a>
                     <a href="{% url 'dashboard:home' %}" class="w-8 h-8 bg-green-600 flex items-center justify-center text-white text-xs font-medium rounded-full">
@@ -59,6 +61,19 @@
             <a href="#pricing" class="block py-2.5 text-sm text-gray-600 hover:text-green-700">Pricing</a>
             <div class="border-t border-green-100 my-3"></div>
             {% if user.is_authenticated %}
+                {% if dashboard_notifications %}
+                <p class="px-1 py-1 text-[10px] font-semibold uppercase tracking-wider text-green-700">Notifications</p>
+                {% for notification in dashboard_notifications %}
+                <div class="rounded-xl border border-green-100 bg-green-50/50 p-3 mb-2">
+                    <p class="text-sm font-medium text-green-950">{{ notification.title }}</p>
+                    <p class="text-xs text-gray-500 mt-0.5">{{ notification.message }}</p>
+                    {% if notification.action_url %}
+                    <a href="{{ notification.action_url }}" class="inline-block mt-2 text-xs font-medium text-green-700">{{ notification.action_label }} →</a>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                <div class="border-t border-green-100 my-3"></div>
+                {% endif %}
                 <a href="{% url 'dashboard:home' %}" class="block py-2.5 text-sm text-gray-600 hover:text-green-700">Dashboard</a>
                 <a href="{% url 'account_logout' %}" class="block py-2.5 text-sm text-gray-600 hover:text-green-700">Log out</a>
             {% else %}

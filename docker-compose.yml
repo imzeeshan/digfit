@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: dig_fit
+      POSTGRES_PASSWORD: dig_fit
+      POSTGRES_DB: dig_fit
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dig_fit -d dig_fit"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DEBUG: "True"
+      SECURE_SSL_REDIRECT: "False"
+      ALLOWED_HOSTS: localhost,127.0.0.1,web
+      CSRF_TRUSTED_ORIGINS: http://localhost:8000
+      DATABASE_URL: postgresql://dig_fit:dig_fit@db:5432/dig_fit
+      # Ollama on the host (Docker Desktop):
+      # OLLAMA_HOST: http://host.docker.internal:11434
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

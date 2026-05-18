@@ -359,6 +359,57 @@ class UserMeal(models.Model):
         return reverse('dashboard:usermeal_detail', kwargs={'pk': self.pk})
 
 
+class Notification(models.Model):
+    TYPE_WEIGHT_LOG_OVERDUE = 'weight_log_overdue'
+
+    TYPE_CHOICES = [
+        (TYPE_WEIGHT_LOG_OVERDUE, 'Weight log overdue'),
+    ]
+
+    ICON_CHOICES = [
+        ('scale-balanced', 'Scale'),
+        ('bell', 'Bell'),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notifications',
+    )
+    notification_type = models.CharField(max_length=50, choices=TYPE_CHOICES)
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    icon = models.CharField(max_length=50, default='bell', choices=ICON_CHOICES)
+    action_url = models.CharField(max_length=255, blank=True)
+    action_label = models.CharField(max_length=64, default='View')
+    metadata = models.JSONField(default=dict, blank=True)
+    is_read = models.BooleanField(default=False)
+    is_dismissed = models.BooleanField(default=False)
+    email_sent_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Notification'
+        verbose_name_plural = 'Notifications'
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'notification_type'],
+                name='unique_notification_per_user_type',
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=['user', 'is_dismissed', '-created_at'],
+                name='dashboard_n_user_id_8f3a2c_idx',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.user.email} — {self.title}"
+
+
 class Intervention(models.Model):
     TYPE_CHOICES = [
         ('dietary', 'Dietary'),
@@ -428,4 +479,5 @@ auditlog.register(Weight)
 auditlog.register(MealPlan)
 auditlog.register(MealEntry)
 auditlog.register(UserMeal)
+auditlog.register(Notification)
 auditlog.register(Intervention)

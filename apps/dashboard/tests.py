@@ -4,7 +4,10 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import SubscriptionPlan, UserSettings
+from django.utils import timezone
+
+from .models import Notification, SubscriptionPlan, UserSettings, Weight
+from .notifications import dismiss_notification, sync_user_notifications
 
 User = get_user_model()
 
@@ -99,3 +102,102 @@ class SettingsOllamaTests(TestCase):
         self.assertEqual(us.ollama_host, '')
         self.assertIn('127.0.0.1', us.get_effective_ollama_host())
         self.assertTrue(us.get_effective_ollama_model())
+
+
+class WeightReminderNotificationTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(email='weight@example.com', password='testpass123')
+        self.settings = UserSettings.objects.create(user=self.user, weight_reminder_days=5)
+
+    def test_no_notification_when_recent_weight_logged(self):
+        Weight.objects.create(
+            user=self.user,
+            datetime=timezone.now(),
+            value=180,
+        )
+        active = sync_user_notifications(self.user)
+        self.assertEqual(active, [])
+        self.assertFalse(
+            Notification.objects.filter(
+                user=self.user,
+                notification_type=Notification.TYPE_WEIGHT_LOG_OVERDUE,
+            ).exists(),
+        )
+
+    def test_creates_overdue_notification(self):
+        Weight.objects.create(
+            user=self.user,
+            datetime=timezone.now() - timezone.timedelta(days=10),
+            value=180,
+        )
+        active = sync_user_notifications(self.user)
+        self.assertEqual(len(active), 1)
+        notif = active[0]
+        self.assertEqual(notif.title, 'Weight log overdue')
+        self.assertIn('5 days', notif.message)
+        self.assertEqual(notif.action_label, 'Log weight')
+
+    def test_dismiss_hides_from_active_list(self):
+        Weight.objects.create(
+            user=self.user,
+            datetime=timezone.now() - timezone.timedelta(days=10),
+            value=180,
+        )
+        active = sync_user_notifications(self.user)
+        dismiss_notification(active[0])
+        active = sync_user_notifications(self.user)
+        self.assertEqual(active, [])
+
+    def test_logging_weight_clears_notification(self):
+        Weight.objects.create(
+            user=self.user,
+            datetime=timezone.now() - timezone.timedelta(days=10),
+            value=180,
+        )
+        sync_user_notifications(self.user)
+        Weight.objects.create(
+            user=self.user,
+            datetime=timezone.now(),
+            value=179,
+        )
+        active = sync_user_notifications(self.user)
+        self.assertEqual(active, [])
+
+    def test_dashboard_shows_notification_bell(self):
+        Weight.objects.create(
+            user=self.user,
+            datetime=timezone.now() - timezone.timedelta(days=10),
+            value=180,
+        )
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('dashboard:home'))
+        self.assertContains(response, 'Weight log overdue')
+        self.assertContains(response, 'Log weight')
+        self.assertContains(response, 'fa-bell')
+        self.assertContains(response, 'Notifications')
+
+    def test_landing_home_shows_notification_bell_and_alert(self):
+        Weight.objects.create(
+            user=self.user,
+            datetime=timezone.now() - timezone.timedelta(days=10),
+            value=180,
+        )
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('landing:home'))
+        self.assertContains(response, 'Weight log overdue')
+        self.assertContains(response, 'Log weight')
+        self.assertContains(response, 'fa-bell')
+
+    def test_dismiss_notification_view(self):
+        Weight.objects.create(
+            user=self.user,
+            datetime=timezone.now() - timezone.timedelta(days=10),
+            value=180,
+        )
+        sync_user_notifications(self.user)
+        notif = Notification.objects.get(user=self.user)
+        self.client.force_login(self.user)
+        response = self.client.post(reverse('dashboard:notification_dismiss', args=[notif.pk]))
+        self.assertEqual(response.status_code, 302)
+        notif.refresh_from_db()
+        self.assertTrue(notif.is_dismissed)

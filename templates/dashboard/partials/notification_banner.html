@@ -1,0 +1,24 @@
+{% for notification in dashboard_notifications %}
+<div class="mb-6 flex items-start gap-3 bg-[#fafafa] border border-light-gray rounded p-4">
+    <div class="w-8 h-8 bg-black rounded flex items-center justify-center flex-shrink-0 mt-0.5">
+        <i class="fa-solid fa-{{ notification.icon }} text-white text-xs"></i>
+    </div>
+    <div class="flex-1 min-w-0">
+        <p class="text-sm font-medium text-black">{{ notification.title }}</p>
+        <p class="text-xs text-gray mt-0.5">{{ notification.message }}</p>
+    </div>
+    <div class="flex items-center gap-2 flex-shrink-0">
+        {% if notification.action_url %}
+        <a href="{{ notification.action_url }}" class="text-xs px-3 py-1.5 bg-black text-white rounded hover:bg-dark-gray transition-colors whitespace-nowrap">
+            {{ notification.action_label }}
+        </a>
+        {% endif %}
+        <form action="{% url 'dashboard:notification_dismiss' notification.pk %}" method="post" class="inline">
+            {% csrf_token %}
+            <button type="submit" class="text-gray hover:text-black p-1" title="Dismiss" aria-label="Dismiss notification">
+                <i class="fa-solid fa-xmark text-xs"></i>
+            </button>
+        </form>
+    </div>
+</div>
+{% endfor %}

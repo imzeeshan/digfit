@@ -14,6 +14,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
@@ -21,7 +22,8 @@ from django.db import models as db_models
 
 from auditlog.models import LogEntry
 
-from .models import Intervention, MealEntry, MealPlan, SubscriptionPlan, UserMeal, UserSettings, Weight
+from .models import Intervention, MealEntry, MealPlan, Notification, SubscriptionPlan, UserMeal, UserSettings, Weight
+from .notifications import dismiss_notification
 from .tasks import (
     send_subscription_cancellation_email,
     send_subscription_confirmation_email,
@@ -53,6 +55,16 @@ def profile(request):
         messages.success(request, 'Profile updated successfully.')
         return redirect('dashboard:profile')
     return render(request, 'dashboard/profile.html')
+
+@login_required
+@require_http_methods(['POST'])
+def notification_dismiss(request, pk):
+    notification = get_object_or_404(Notification, pk=pk, user=request.user)
+    dismiss_notification(notification)
+    messages.success(request, 'Notification dismissed.')
+    next_url = request.POST.get('next') or request.META.get('HTTP_REFERER') or reverse('dashboard:home')
+    return redirect(next_url)
+
 
 @login_required
 @require_http_methods(['GET', 'POST'])

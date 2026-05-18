@@ -11,11 +11,21 @@ from apps.dashboard.meal_plan_llm import (
     compare_meal_plan_to_logged_meals,
     resolve_meal_plan_for_user_comparison,
 )
-from apps.dashboard.models import Intervention, MealPlan, SubscriptionPlan, UserMeal, UserSettings, Weight
+from apps.dashboard.models import (
+    Intervention,
+    MealPlan,
+    Notification,
+    SubscriptionPlan,
+    UserMeal,
+    UserSettings,
+    Weight,
+)
+from apps.dashboard.notifications import dismiss_notification, sync_user_notifications
 from apps.subscriptions.models import StripeCustomer
 
 from .serializers import (
     InterventionSerializer,
+    NotificationSerializer,
     MealPlanSerializer,
     StripeCustomerSerializer,
     SubscriptionPlanSerializer,
@@ -138,6 +148,36 @@ class StripeCustomerViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = StripeCustomer.objects.select_related('user').all()
 
 
+class NotificationViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    """In-app notifications for the current user (synced on list)."""
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        sync_user_notifications(self.request.user)
+        return Notification.objects.filter(
+            user=self.request.user,
+            is_dismissed=False,
+        ).order_by('-created_at')
+
+    @action(detail=True, methods=['post'], url_path='dismiss')
+    def dismiss(self, request, pk=None):
+        notification = self.get_object()
+        dismiss_notification(notification)
+        return Response({'dismissed': True})
+
+    @action(detail=True, methods=['post'], url_path='read')
+    def read(self, request, pk=None):
+        notification = self.get_object()
+        notification.is_read = True
+        notification.save(update_fields=['is_read', 'updated_at'])
+        return Response(self.get_serializer(notification).data)
+
+
 class WeightViewSet(viewsets.ModelViewSet):
     """Weight entries — admin sees all; regular users see only their own."""
     serializer_class = WeightSerializer
@@ -154,14 +194,25 @@ class WeightViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='reminder')
     def reminder(self, request):
-        """Check if the current user's weight log is overdue."""
-        us, _ = UserSettings.objects.get_or_create(user=request.user)
-        reminder = us.get_weight_reminder()
-        if reminder:
-            reminder['last_logged'] = (
-                reminder['last_logged'].isoformat() if reminder['last_logged'] else None
-            )
-        return Response(reminder or {'overdue': False})
+        """Check if the current user's weight log is overdue (legacy; prefer /api/notifications/)."""
+        sync_user_notifications(request.user)
+        notif = Notification.objects.filter(
+            user=request.user,
+            notification_type=Notification.TYPE_WEIGHT_LOG_OVERDUE,
+            is_dismissed=False,
+        ).first()
+        if not notif:
+            return Response({'overdue': False})
+        return Response(
+            {
+                'overdue': True,
+                'threshold_days': notif.metadata.get('threshold_days'),
+                'days_since': notif.metadata.get('days_since'),
+                'last_logged': notif.metadata.get('last_logged'),
+                'title': notif.title,
+                'message': notif.message,
+            },
+        )
 
 
 class UserMealViewSet(viewsets.ModelViewSet):

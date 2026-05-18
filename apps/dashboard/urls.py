@@ -8,6 +8,7 @@ urlpatterns = [
     path('', views.dashboard_home, name='home'),
     path('profile/', views.profile, name='profile'),
     path('settings/', views.settings, name='settings'),
+    path('notifications/<int:pk>/dismiss/', views.notification_dismiss, name='notification_dismiss'),
     path('settings/generate-api-key/', views.generate_api_key, name='generate_api_key'),
     path('subscription/plans/', views.subscription_plans, name='subscription_plans'),
     path('subscription/plans/<slug:plan_slug>/subscribe/', views.subscribe_to_plan, name='subscribe_to_plan'),

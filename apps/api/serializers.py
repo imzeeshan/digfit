@@ -1,7 +1,16 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from apps.dashboard.models import Intervention, MealEntry, MealPlan, SubscriptionPlan, UserMeal, UserSettings, Weight
+from apps.dashboard.models import (
+    Intervention,
+    MealEntry,
+    MealPlan,
+    Notification,
+    SubscriptionPlan,
+    UserMeal,
+    UserSettings,
+    Weight,
+)
 from apps.subscriptions.models import StripeCustomer
 
 User = get_user_model()
@@ -78,6 +87,37 @@ class StripeCustomerSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at',
         ]
         read_only_fields = fields
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = [
+            'id',
+            'notification_type',
+            'title',
+            'message',
+            'icon',
+            'action_url',
+            'action_label',
+            'metadata',
+            'is_read',
+            'is_dismissed',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = [
+            'id',
+            'notification_type',
+            'title',
+            'message',
+            'icon',
+            'action_url',
+            'action_label',
+            'metadata',
+            'created_at',
+            'updated_at',
+        ]
 
 
 class WeightSerializer(serializers.ModelSerializer):

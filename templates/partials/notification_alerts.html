@@ -1,0 +1,32 @@
+{% if dashboard_notifications %}
+<div class="{% if theme == 'green' %}bg-amber-50/80 border-b border-green-100{% else %}bg-[#fafafa] border-b border-light-gray{% endif %}">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 space-y-2">
+        {% for notification in dashboard_notifications %}
+        <div class="flex items-start gap-3 rounded-xl p-4 border shadow-sm {% if theme == 'green' %}bg-white border-green-100{% else %}bg-white border-light-gray{% endif %}">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 {% if theme == 'green' %}bg-green-600{% else %}bg-black{% endif %}">
+                <i class="fa-solid fa-{{ notification.icon }} text-white text-xs"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium {% if theme == 'green' %}text-green-950{% else %}text-black{% endif %}">{{ notification.title }}</p>
+                <p class="text-xs text-gray mt-0.5">{{ notification.message }}</p>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                {% if notification.action_url %}
+                <a href="{{ notification.action_url }}"
+                   class="text-xs px-3 py-1.5 rounded-full font-medium text-white whitespace-nowrap {% if theme == 'green' %}bg-green-600 hover:bg-green-700{% else %}bg-black hover:bg-dark-gray{% endif %} transition-colors">
+                    {{ notification.action_label }}
+                </a>
+                {% endif %}
+                <form action="{% url 'dashboard:notification_dismiss' notification.pk %}" method="post" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button type="submit" class="text-gray {% if theme == 'green' %}hover:text-green-700{% else %}hover:text-black{% endif %} p-1" title="Dismiss" aria-label="Dismiss notification">
+                        <i class="fa-solid fa-xmark text-xs"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}

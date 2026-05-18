@@ -34,6 +34,7 @@
 
     <!-- Alpine.js -->
     <script nonce="{{ csp_nonce }}" defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style nonce="{{ csp_nonce }}">[x-cloak] { display: none !important; }</style>
 
     {% block extra_head %}{% endblock %}
 </head>
@@ -55,6 +56,19 @@
                 <a href="{% url 'landing:pricing' %}" class="block py-2.5 text-sm text-gray hover:text-black">Pricing</a>
                 <div class="border-t border-light-gray my-3"></div>
                 {% if user.is_authenticated %}
+                    {% if dashboard_notifications %}
+                    <p class="px-1 py-1 text-[10px] font-medium uppercase tracking-wider text-gray">Notifications</p>
+                    {% for notification in dashboard_notifications %}
+                    <div class="border border-light-gray rounded p-3 mb-2 bg-[#fafafa]">
+                        <p class="text-sm font-medium text-black">{{ notification.title }}</p>
+                        <p class="text-xs text-gray mt-0.5">{{ notification.message }}</p>
+                        {% if notification.action_url %}
+                        <a href="{{ notification.action_url }}" class="inline-block mt-2 text-xs text-black font-medium">{{ notification.action_label }} →</a>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                    <div class="border-t border-light-gray my-3"></div>
+                    {% endif %}
                     <a href="{% url 'dashboard:home' %}" class="block py-2.5 text-sm text-gray hover:text-black">Dashboard</a>
                     <a href="{% url 'dashboard:profile' %}" class="block py-2.5 text-sm text-gray hover:text-black">Profile</a>
                     <a href="{% url 'dashboard:settings' %}" class="block py-2.5 text-sm text-gray hover:text-black">Settings</a>
@@ -89,6 +103,7 @@
                 <!-- Right side - Desktop -->
                 <div class="hidden md:flex items-center gap-4">
                     {% if user.is_authenticated %}
+                        {% include "partials/notification_bell.html" %}
                         <a href="{% url 'dashboard:home' %}" class="text-sm text-gray hover:text-black transition-colors">Dashboard</a>
                         <a href="{% url 'dashboard:profile' %}" class="text-sm text-gray hover:text-black transition-colors">Profile</a>
                         <a href="{% url 'account_logout' %}" class="text-sm text-gray hover:text-black transition-colors">Log out</a>
@@ -136,6 +151,14 @@
                 </div>
             {% endfor %}
         </div>
+    {% endif %}
+
+    {% if request.resolver_match.namespace == 'landing' %}
+        {% if request.resolver_match.url_name == 'home' %}
+            {% include "partials/notification_alerts.html" with theme="green" %}
+        {% else %}
+            {% include "partials/notification_alerts.html" %}
+        {% endif %}
     {% endif %}
 
     <!-- Main content -->

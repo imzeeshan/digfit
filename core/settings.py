@@ -65,7 +65,7 @@ INSTALLED_APPS = [
     'core.apps.CoreConfig',
     'apps.accounts',
     'apps.landing',
-    'apps.dashboard',
+    'apps.dashboard.apps.DashboardConfig',
     'apps.subscriptions',
     'apps.api',
 ]
@@ -101,7 +101,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'django.template.context_processors.csp',
-                'apps.dashboard.context_processors.weight_reminder',
+                'apps.dashboard.context_processors.dashboard_notifications',
             ],
         },
     },
@@ -268,7 +268,7 @@ if not DEBUG:
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
-    SECURE_SSL_REDIRECT = True
+    SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'True').lower() == 'true'
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     X_FRAME_OPTIONS = 'DENY'

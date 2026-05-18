@@ -69,65 +69,68 @@ python .\manage.py runserver
 
 Visit **http://localhost:8000** — admin login: `admin@example.com` / `admin123`
 
-## Commands
-
-| Command | Description |
-|---------|-------------|
-| `make install` | Create virtualenv and install dependencies |
-| `make run` | Start development server |
-| `make migrate` | Run makemigrations + migrate |
-| `make test` | Run the test suite |
-| `make seed` | Populate demo data (admin + plans) |
-| `make lint` | Lint with ruff |
-| `make format` | Format with ruff |
-| `make superuser` | Create admin user |
-| `make clean` | Remove __pycache__ files |
-| `python manage.py mcp_chat` | Chat with Ollama using DigFit API as MCP tools |
-| `python manage.py ollama_ping` | Verify Ollama is reachable |
-| `python manage.py runmcp` | Start standalone MCP server (stdio/sse/http) |
-
 ## Project structure
 
 ```
-dig_fit/
+digfit/
+├── manage.py
 ├── core/
 │   ├── settings.py           # All config via env vars
 │   ├── urls.py               # Root URL routing
-│   ├── wsgi.py
-│   └── asgi.py
+│   ├── wsgi.py / asgi.py
+│   ├── authentication.py     # MCP token auth for DRF
+│   ├── permissions.py
+│   ├── ollama_client.py      # Ollama HTTP client
+│   └── management/commands/  # mcp_chat, ollama_ping
 ├── apps/
 │   ├── accounts/             # CustomUser (email-only), admin
 │   │   ├── models.py         # CustomUser + CustomUserManager
 │   │   ├── admin.py
-│   │   └── tests.py          # 6 tests
-│   ├── dashboard/            # Dashboard, profile, settings
-│   │   ├── models.py         # MealPlan, UserMeal, UserSettings, etc.
+│   │   └── tests.py
+│   ├── dashboard/            # Dashboard, profile, settings, meal plans
+│   │   ├── models.py         # MealPlan, UserMeal, UserSettings, Weight, …
+│   │   ├── views.py / urls.py / admin.py
 │   │   ├── meal_plan_llm.py  # LLM context + compare (Ollama)
-│   │   ├── views.py          # dashboard, profile, settings, plans
 │   │   ├── tasks.py          # Background email tasks
-│   │   ├── tests.py          # 6 tests
-│   │   └── management/commands/seed_data.py
+│   │   ├── context_processors.py
+│   │   ├── tests.py
+│   │   └── management/commands/
+│   │       ├── seed_data.py
+│   │       └── check_weight_reminders.py
 │   ├── api/                  # REST API + MCP
-│   │   ├── serializers.py    # DRF serializers
+│   │   ├── serializers.py
 │   │   ├── auth_views.py     # POST /api/auth/login/, /logout/
 │   │   ├── views.py          # ViewSets (users, meal-plans, weights, …)
-│   │   └── urls.py           # Router + auth routes
+│   │   ├── urls.py
+│   │   └── tests.py
 │   ├── subscriptions/        # Stripe integration
 │   │   ├── models.py         # StripeCustomer
-│   │   └── views.py          # checkout, webhooks
+│   │   ├── views.py          # checkout, webhooks
+│   │   └── urls.py
 │   └── landing/              # Public pages
 │       ├── views.py          # home, features, pricing, robots.txt
-│       └── tests.py          # 4 tests
+│       ├── urls.py
+│       └── tests.py
 ├── templates/
 │   ├── base.html             # Public layout (nav + footer)
-│   ├── account/              # 20 allauth templates (styled)
+│   ├── account/              # allauth templates (styled)
 │   ├── dashboard/            # Dashboard layout + pages + audit logs
 │   ├── landing/              # Home, features, pricing
 │   └── subscriptions/        # Stripe checkout
 ├── static/css/               # Design system CSS
+├── docker/
+│   └── entrypoint.sh         # migrate + collectstatic, then exec CMD
+├── Dockerfile
+├── docker-compose.yml        # web (Gunicorn) + PostgreSQL
+├── .dockerignore
+├── API.md                    # REST API reference
+├── DATABASE.MD               # Schema / models overview
+├── DigFit_API.postman_collection.json
+├── screenshots/              # App screenshots
 ├── CLAUDE.md                 # AI editor context
+├── CONTRIBUTING.md
 ├── Makefile                  # Dev commands
-├── Procfile                  # Deployment
+├── Procfile                  # Railway / Heroku (Gunicorn)
 ├── pyproject.toml            # Ruff config
 ├── requirements.txt
 └── .env.example

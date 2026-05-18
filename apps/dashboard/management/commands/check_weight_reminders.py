@@ -9,6 +9,7 @@ logged their weight within their configured reminder window.
 from django.core.management.base import BaseCommand
 
 from apps.dashboard.models import UserSettings
+from apps.dashboard.notifications import sync_user_notifications
 
 
 class Command(BaseCommand):
@@ -17,6 +18,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         overdue = 0
         for us in UserSettings.objects.select_related('user').filter(weight_reminder_days__gt=0):
+            sync_user_notifications(us.user)
             reminder = us.get_weight_reminder()
             if reminder:
                 overdue += 1

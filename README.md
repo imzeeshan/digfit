@@ -58,11 +58,13 @@ Django app for DigFit. Auth, payments, dashboard, and deployment — all wired u
 ```bash
 git clone <your-repository-url>
 cd dig_fit
-make install
 cp .env.example .env
-make migrate
-python manage.py seed_data
-make run
+python -m venv venv 
+./venv/Scripts/active #Windows
+pip install -r requirements.txt
+python manage.py migrate 
+python manage.py createsuperuser
+python .\manage.py runserver
 ```
 
 Visit **http://localhost:8000** — admin login: `admin@example.com` / `admin123`

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "digfit-api-collection",
     "name": "DigFit API",
-    "description": "REST API for DigFit (Django REST Framework).\n\n**Setup:** Import this file in Postman. Set `base_url` (default `http://127.0.0.1:8000`). Run **Auth → Login** first; copy `token` into collection variable **`api_token`**. Collection auth sends `Authorization: Token {{api_token}}` on other requests. **Do not use Postman’s “Bearer Token” auth** — DRF expects the header `Authorization: Token <key>` exactly. For Login, the request uses **no auth** so the body is not overridden.\n\n**Alternative:** MCP internal requests use the `X-MCP-Token` header (see `DJANGO_MCP` / `MCP_INTERNAL_TOKEN` in settings); Postman does not set this by default.\n\n**Roles:** Admin-only routes require `is_staff`. See `API.md` for field lists and examples.",
+    "description": "REST API for DigFit (Django REST Framework).\n\n**Setup:** Import this file in Postman. Set `base_url` (default `http://127.0.0.1:8000`). Run **Auth → Login** first; copy `token` into collection variable **`api_token`**. Collection auth sends `Authorization: Token {{api_token}}` on other requests. **Do not use Postman’s “Bearer Token” auth** — DRF expects the header `Authorization: Token <key>` exactly. For Login, the request uses **no auth** so the body is not overridden.\n\n**Seed logins** (after `python manage.py seed_data`): `admin@example.com` / `admin123`, `coach@example.com` / `coach123`, `user@example.com` / `user1234`, `client2@example.com` / `client2123`.\n\n**Meal compare:** `compare-meals` uses Ollama (503 if unavailable). `compare-meals-db` is deterministic JSON (slots, daily totals, insights) — no LLM required.\n\n**Alternative:** MCP internal requests use the `X-MCP-Token` header (see `DJANGO_MCP` / `MCP_INTERNAL_TOKEN` in settings); Postman does not set this by default.\n\n**Roles:** Admin-only routes require `is_staff`. See `API.md` for field lists and examples.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -36,7 +36,7 @@
     },
     {
       "key": "plan_slug",
-      "value": "starter"
+      "value": "pro"
     },
     {
       "key": "user_id",
@@ -88,7 +88,7 @@
             "url": "{{base_url}}/api/auth/login/",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"you@example.com\",\n  \"password\": \"your-password\"\n}"
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"user1234\"\n}"
             },
             "description": "Public endpoint. Copy `token` from the response into the collection variable `api_token`, then use other folders."
           }
@@ -541,11 +541,39 @@
           }
         },
         {
-          "name": "Compare meal plan vs logged meals by user id (LLM)",
+          "name": "Compare meal plan vs logged meals (LLM, by plan id)",
           "request": {
             "method": "POST",
             "header": [],
-            "url": "{{base_url}}/api/meal-plans/by-user/{{user_id}}/compare-meals/"
+            "url": "{{base_url}}/api/meal-plans/{{meal_plan_id}}/compare-meals/",
+            "description": "Ollama compares this plan's MealEntry rows and targets to UserMeals in the plan date window. Response includes `compare_mode`: `llm` and `analysis` text. Requires Ollama running (503 on failure)."
+          }
+        },
+        {
+          "name": "Compare meal plan vs logged meals (LLM, by user id)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/meal-plans/by-user/{{user_id}}/compare-meals/",
+            "description": "Resolves a meal plan for the user (active window, else latest with entries), then runs LLM compare. Staff: any user_id; others: own id only. Response includes `meal_plan_selection`."
+          }
+        },
+        {
+          "name": "Compare meal plan vs logged meals (DB, by plan id)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/meal-plans/{{meal_plan_id}}/compare-meals-db/",
+            "description": "Deterministic DB compare (no Ollama). Returns `compare_mode`: `db`, `summary`, `daily`, `by_meal_type`, `slots` (linked / matched_unlinked / missing_log), `extra_meals`, and `insights`."
+          }
+        },
+        {
+          "name": "Compare meal plan vs logged meals (DB, by user id)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/meal-plans/by-user/{{user_id}}/compare-meals-db/",
+            "description": "Same as DB compare by plan id, but auto-selects the user's resolved meal plan. Use `user@example.com` (id from List users) after seeding."
           }
         },
         {

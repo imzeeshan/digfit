@@ -21,7 +21,7 @@ Django app for DigFit. Auth, payments, dashboard, and deployment — all wired u
 - **Weight log reminders** — in-app alerts when a user has not logged weight within a configurable day window (optional one-time email)
 - **Subscription plans** — admin-managed plans with trial support
 - **REST API** — Django REST Framework with session + token auth (including **`/api/auth/login/`** for API tokens)
-- **Meal plan vs logs (LLM)** — compare structured meal plans to logged `UserMeal` entries via Ollama (`chat_for_user`, user-specific host/model from settings)
+- **Meal plan vs logs** — compare planned `MealEntry` rows to logged `UserMeal` entries via **LLM** (Ollama) or **DB** (deterministic JSON: slots, daily totals, insights)
 - **MCP server** — django-drf-mcp auto-exposes API endpoints as MCP tools for AI assistants
 - **Ollama integration** — local LLM tool-calling via MCP (chat with your API using llama3.1, qwen2.5, etc.)
 - **Audit trails** — automatic change tracking on all models (django-auditlog)
@@ -183,7 +183,8 @@ digfit/
 │   ├── dashboard/            # Dashboard, profile, settings, meal plans
 │   │   ├── models.py         # MealPlan, UserMeal, UserSettings, Weight, …
 │   │   ├── views.py / urls.py / admin.py
-│   │   ├── meal_plan_llm.py  # LLM context + compare (Ollama)
+│   │   ├── meal_plan_compare.py  # Shared context, plan resolution, DB compare
+│   │   ├── meal_plan_llm.py      # LLM compare (Ollama)
 │   │   ├── notifications.py  # Sync weight-overdue in-app notifications
 │   │   ├── signals.py        # Re-sync notifications on weight/settings changes
 │   │   ├── tasks.py          # Background email tasks
@@ -402,8 +403,10 @@ All endpoints except **`POST /api/auth/login/`** require authentication (session
 | `/api/notifications/{id}/read/` | POST | Mark notification read |
 | `/api/meal-plans/` | GET, POST | Meal plans (admin: all, user: own) |
 | `/api/meal-plans/{id}/` | GET, PUT, PATCH, DELETE | Meal plan detail |
-| `/api/meal-plans/by-user/{user_id}/compare-meals/` | POST | LLM: resolve plan for user, compare vs logged meals |
-| `/api/meal-plans/{id}/compare-meals/` | POST | LLM: compare that plan vs logged meals in range |
+| `/api/meal-plans/{id}/compare-meals/` | POST | **LLM:** compare that plan vs logged meals in range |
+| `/api/meal-plans/by-user/{user_id}/compare-meals/` | POST | **LLM:** resolve plan for user, then compare vs logged meals |
+| `/api/meal-plans/{id}/compare-meals-db/` | POST | **DB:** deterministic compare for a specific plan (no Ollama) |
+| `/api/meal-plans/by-user/{user_id}/compare-meals-db/` | POST | **DB:** resolve plan for user, then deterministic compare |
 | `/api/user-meals/` | GET, POST | User meals (admin: all, user: own) |
 | `/api/user-meals/{id}/` | GET, PUT, PATCH, DELETE | User meal detail |
 | `/api/interventions/` | GET, POST | Interventions (admin: all, user: own) |
@@ -423,25 +426,52 @@ curl -H "Authorization: Token YOUR_TOKEN" http://localhost:8000/api/users/me/
 
 Full field lists and curl examples: **[API.md](API.md)**. Postman: **[DigFit_API.postman_collection.json](DigFit_API.postman_collection.json)**.
 
-### Meal plan vs logged meals (LLM compare)
+### Meal plan vs logged meals (compare)
 
-The API can ask a **local Ollama** model to compare what was **planned** (`MealPlan` + nested `MealEntry` rows, targets, foods) with what the user **actually logged** (`UserMeal` rows whose dates fall inside that plan’s `start_date`–`end_date`).
+Compare what was **planned** (`MealPlan` + `MealEntry` rows, targets, foods) with what the user **logged** (`UserMeal` rows whose dates fall inside the plan’s `start_date`–`end_date`). All four endpoints use an **empty POST body** and require `Authorization: Token <key>` (staff may compare any user on the **by-user** routes; regular users only their own `user_id`).
+
+| Endpoint | Mode | Description |
+|----------|------|-------------|
+| `POST /api/meal-plans/{id}/compare-meals/` | LLM | Compare one meal plan by id |
+| `POST /api/meal-plans/by-user/{user_id}/compare-meals/` | LLM | Auto-select a plan for the user, then compare |
+| `POST /api/meal-plans/{id}/compare-meals-db/` | DB | Deterministic compare for one plan (no Ollama) |
+| `POST /api/meal-plans/by-user/{user_id}/compare-meals-db/` | DB | Auto-select a plan, then deterministic compare |
+
+Postman: **Meal plans** folder in [DigFit_API.postman_collection.json](DigFit_API.postman_collection.json) (all four requests).
+
+#### LLM compare (`compare-meals`)
+
+Uses a **local Ollama** model for narrative analysis (`compare_mode`: `llm`, field `analysis`).
 
 | Piece | Location / behavior |
 |-------|------------------------|
-| Context + prompt | `apps/dashboard/meal_plan_llm.py` — `build_meal_comparison_context()`, `compare_meal_plan_to_logged_meals()` |
-| Ollama call | `core/ollama_client.py` — `chat_for_user()` uses the **plan owner’s** dashboard **UserSettings** (host/model), with `OLLAMA_HOST` / `OLLAMA_MODEL` as fallback |
-| Plan resolution (by user) | `resolve_meal_plan_for_user_comparison()` — among plans overlapping **today**, prefers the most **MealEntry** rows then latest `start_date`. If every in-window plan has **zero** entries, falls back to the latest plan that **does** have entries (`meal_plan_selection`: `fallback_latest_with_entries`) so the LLM is not fed an empty `planned_entries` when another plan has structured meals. If nothing overlaps today, picks best plan by entry count then `start_date`. |
-| HTTP | `MealPlanViewSet` in `apps/api/views.py` — `compare_meals_by_user` and `compare_meals` |
+| Context + prompt | `apps/dashboard/meal_plan_compare.py` — `build_meal_comparison_context()`; `apps/dashboard/meal_plan_llm.py` — `compare_meal_plan_to_logged_meals()` |
+| Ollama call | `core/ollama_client.py` — `chat_for_user()` uses the **plan owner’s** **UserSettings** (host/model), with `OLLAMA_HOST` / `OLLAMA_MODEL` as fallback |
+| Plan resolution (by user) | `resolve_meal_plan_for_user_comparison()` in `meal_plan_compare.py` — among plans overlapping **today**, prefers the most **MealEntry** rows then latest `start_date`; if in-window plans have no entries, falls back to the latest plan with entries (`meal_plan_selection`: `fallback_latest_with_entries`); otherwise best plan by entry count |
+| HTTP | `MealPlanViewSet` — `compare_meals`, `compare_meals_by_user` |
 
-**Endpoints** (empty JSON body; send `Authorization: Token <key>` on every request except login):
+**By-user response extras:** `user_id`, `meal_plan_title`, `meal_plan_selection` (`active_window`, `fallback_latest_with_entries`, or `latest_by_start_date`), `date_range`, entry/meal counts. **404** if the user has no meal plan.
 
-- **`POST /api/meal-plans/by-user/{user_id}/compare-meals/`** — only needs a user id. Staff may use any id; regular users only their own. Response includes `user_id`, `meal_plan_title`, `meal_plan_selection` (`active_window`, `fallback_latest_with_entries`, or `latest_by_start_date`), `analysis`, counts, and `date_range`. **404** if that user has no meal plan.
-- **`POST /api/meal-plans/{id}/compare-meals/`** — same comparison for one explicit meal plan id.
+**Failures:** **503** if Ollama is unreachable (`error`: `llm_compare_failed`). Ensure Ollama is running and the model is pulled (see `OLLAMA_*` in **Environment variables**).
 
-**Failures:** **503** if Ollama is unreachable or errors (`error`: `llm_compare_failed`). Ensure Ollama is running and the model is pulled (see `OLLAMA_*` in **Environment variables**).
+#### DB compare (`compare-meals-db`)
 
-**MCP:** Compare routes are exposed like other `/api/*` operations in `tools/list` (names follow the OpenAPI operation ids from drf-spectacular). **`POST /api/auth/login/`** is excluded from MCP tools in settings to avoid password-based tool calls through the MCP bridge.
+Pure ORM logic — no LLM required (`compare_mode`: `db`). Useful for dashboards, tests, and clients that want structured data.
+
+| Piece | Location / behavior |
+|-------|------------------------|
+| Compare logic | `apps/dashboard/meal_plan_compare.py` — `compare_meal_plan_db()` |
+| HTTP | `MealPlanViewSet` — `compare_meals_db`, `compare_meals_by_user_db` |
+
+**Response highlights:** `summary` (counts, adherence, planned vs actual calorie totals), `daily` (per-day breakdown), `by_meal_type`, `slots` (each planned entry with status `linked`, `matched_unlinked`, or `missing_log`), `extra_meals` (logs in the window that do not match a slot), `insights` (short deterministic bullets). Matching uses explicit `MealEntry.actual_meal` links first, then same calendar day + `meal_type`.
+
+**Example:**
+```bash
+curl -X POST http://localhost:8000/api/meal-plans/by-user/3/compare-meals-db/ \
+  -H "Authorization: Token YOUR_TOKEN"
+```
+
+**MCP:** Compare routes are exposed like other `/api/*` operations in `tools/list`. **`POST /api/auth/login/`** is excluded from MCP tools in settings.
 
 ## MCP (Model Context Protocol)
 

@@ -18,6 +18,7 @@ Django app for DigFit. Auth, payments, dashboard, and deployment — all wired u
 - **Authentication** — signup, login, email verification, password reset (django-allauth)
 - **Stripe subscriptions** — Payment Methods API, webhooks, subscription status tracking
 - **User dashboard** — sidebar nav, profile (with avatar upload), settings, notification preferences, API keys
+- **Weight log reminders** — in-app alerts when a user has not logged weight within a configurable day window (optional one-time email)
 - **Subscription plans** — admin-managed plans with trial support
 - **REST API** — Django REST Framework with session + token auth (including **`/api/auth/login/`** for API tokens)
 - **Meal plan vs logs (LLM)** — compare structured meal plans to logged `UserMeal` entries via Ollama (`chat_for_user`, user-specific host/model from settings)
@@ -57,17 +58,109 @@ Django app for DigFit. Auth, payments, dashboard, and deployment — all wired u
 
 ```bash
 git clone <your-repository-url>
-cd dig_fit
+cd digfit
 cp .env.example .env
-python -m venv venv 
-./venv/Scripts/active #Windows
+python -m venv venv
+# Windows: venv\Scripts\activate
+# macOS/Linux: source venv/bin/activate
 pip install -r requirements.txt
-python manage.py migrate 
-python manage.py createsuperuser
-python .\manage.py runserver
+python manage.py migrate
+python manage.py seed_data
+python manage.py runserver
 ```
 
-Visit **http://localhost:8000** — admin login: `admin@example.com` / `admin123`
+Visit **http://localhost:8000** — Django admin: **http://localhost:8000/admin/** (`admin@example.com` / `admin123` after seeding)
+
+## Docker
+
+Run the full stack (Gunicorn + PostgreSQL) with Docker Compose. Migrations and static files run automatically on startup; **seed data is a separate step** (not run by the container entrypoint).
+
+### Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/macOS) or Docker Engine + Compose v2
+
+### First-time setup
+
+```bash
+git clone <your-repository-url>
+cd digfit
+cp .env.example .env
+docker compose up --build
+```
+
+Wait until the `web` service logs show Gunicorn is ready:
+
+```text
+Listening at: http://0.0.0.0:8000
+```
+
+In a **second terminal**, seed the database (admin user, demo users, subscription plans):
+
+```bash
+docker compose exec web python manage.py seed_data
+```
+
+Open the app:
+
+| URL | Purpose |
+|-----|---------|
+| http://127.0.0.1:8000 | Public site / dashboard (after login) |
+| http://127.0.0.1:8000/admin/ | Django admin |
+
+**Seed credentials** (safe for local dev only — change in production):
+
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | `admin@example.com` | `admin123` |
+| Coach | `coach@example.com` | `coach123` |
+| User | `user@example.com` | `user1234` |
+
+To create a custom superuser instead of (or in addition to) seed data:
+
+```bash
+docker compose exec web python manage.py createsuperuser
+```
+
+### What Docker runs
+
+| Service | Image / build | Port | Notes |
+|---------|---------------|------|-------|
+| `web` | Built from `Dockerfile` | **8000** | Runs `migrate`, `collectstatic`, then Gunicorn |
+| `db` | `postgres:16-alpine` | internal | User/db/password: `dig_fit` / `dig_fit` / `dig_fit` |
+
+`docker-compose.yml` sets `DATABASE_URL` to PostgreSQL inside the compose network. Your `.env` is still loaded for Stripe, email, Ollama, etc.; compose overrides `DEBUG`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, and `DATABASE_URL` for the container.
+
+### Useful commands
+
+```bash
+# Start in the background
+docker compose up -d --build
+
+# Follow logs
+docker compose logs -f web
+
+# Stop containers (keep database volume)
+docker compose down
+
+# Stop and delete the PostgreSQL data volume (fresh DB)
+docker compose down -v
+
+# Run tests inside the web container
+docker compose exec web python manage.py test
+
+# Django shell
+docker compose exec web python manage.py shell
+```
+
+### Ollama from Docker
+
+Ollama usually runs on the host. On Docker Desktop, uncomment in `docker-compose.yml`:
+
+```yaml
+OLLAMA_HOST: http://host.docker.internal:11434
+```
+
+Ensure the model is pulled on the host (`ollama pull medgemma:4b` or your chosen model).
 
 ## Project structure
 
@@ -91,11 +184,14 @@ digfit/
 │   │   ├── models.py         # MealPlan, UserMeal, UserSettings, Weight, …
 │   │   ├── views.py / urls.py / admin.py
 │   │   ├── meal_plan_llm.py  # LLM context + compare (Ollama)
+│   │   ├── notifications.py  # Sync weight-overdue in-app notifications
+│   │   ├── signals.py        # Re-sync notifications on weight/settings changes
 │   │   ├── tasks.py          # Background email tasks
 │   │   ├── context_processors.py
 │   │   ├── tests.py
 │   │   └── management/commands/
 │   │       ├── seed_data.py
+│   │       ├── sync_notifications.py
 │   │       └── check_weight_reminders.py
 │   ├── api/                  # REST API + MCP
 │   │   ├── serializers.py
@@ -219,6 +315,69 @@ Every create, update, and delete across all models is automatically logged using
 
 **Dashboard view:** Staff users can browse and filter the full audit log at `/dashboard/audit-logs/` (sidebar: Admin > Audit Logs). The Django admin also shows per-object history via the "Audit log" link on each record.
 
+## Weight log reminders
+
+Users can be reminded to log their weight when they have not recorded an entry within a configurable window. Reminders appear as **in-app notifications** on the dashboard; an optional **one-time email** is sent when a new overdue alert is first created.
+
+### When a user is “overdue”
+
+| Setting | Location | Default |
+|---------|----------|---------|
+| `weight_reminder_days` | Dashboard **Settings** or `PATCH /api/settings/me/` | **5** days |
+| Disabled | Set `weight_reminder_days` to **0** | — |
+
+Logic lives in `UserSettings.get_weight_reminder()` (`apps/dashboard/models.py`): if the latest `Weight` entry for the user is older than `weight_reminder_days` (or there is no entry), the user is overdue.
+
+### How often checks run
+
+There is **no built-in cron or periodic worker** for weight reminders. Overdue state is **recomputed on demand** whenever sync runs:
+
+| Trigger | Code |
+|---------|------|
+| Authenticated dashboard or landing page load | `apps/dashboard/context_processors.py` → `sync_user_notifications()` |
+| Weight create, update, or delete | `apps/dashboard/signals.py` |
+| User settings save | `apps/dashboard/signals.py` |
+| `GET /api/notifications/` | `NotificationViewSet.get_queryset()` in `apps/api/views.py` |
+| `GET /api/weights/reminder/` (legacy) | `WeightViewSet.reminder` in `apps/api/views.py` |
+
+Core sync: `sync_weight_reminder_notification()` and `sync_user_notifications()` in `apps/dashboard/notifications.py`. This creates, updates, or deletes a persisted `Notification` with type `weight_log_overdue`.
+
+For **all users** without waiting for traffic (e.g. to refresh alerts or send emails for inactive users), run manually or on a schedule you configure:
+
+```bash
+python manage.py sync_notifications
+python manage.py check_weight_reminders   # same sync + prints overdue summary
+```
+
+Docker:
+
+```bash
+docker compose exec web python manage.py sync_notifications
+```
+
+Nothing in `docker-compose.yml` runs these commands automatically; use **cron**, **systemd timers**, or your host’s scheduler if you want daily batch sync (the `check_weight_reminders` docstring suggests daily as an example).
+
+### Email
+
+Email is sent **once per overdue alert**, only when the in-app notification is **first created**, and only if **Product updates** (`notify_updates` on user settings) is enabled.
+
+| Piece | Location |
+|-------|----------|
+| Enqueue guard | `maybe_send_weight_reminder_email()` in `apps/dashboard/notifications.py` |
+| Background send | `send_weight_reminder_email` in `apps/dashboard/tasks.py` (`@task` + `.enqueue()`) |
+
+Repeated page loads or syncs update the in-app message but do **not** resend email (`email_sent_at` on the notification prevents duplicates).
+
+### API
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/notifications/` | Lists active notifications (syncs on each request) |
+| `POST /api/notifications/{id}/dismiss/` | Dismiss an alert |
+| `GET /api/weights/reminder/` | Legacy overdue check (prefer notifications) |
+
+See **[API.md](API.md)** for request/response shapes.
+
 ## REST API
 
 All endpoints except **`POST /api/auth/login/`** require authentication (session or token). The API root is at `/api/`.
@@ -235,7 +394,12 @@ All endpoints except **`POST /api/auth/login/`** require authentication (session
 | `/api/settings/me/` | GET, PATCH | Update notification preferences |
 | `/api/stripe-customers/` | GET | Stripe records (admin only) |
 | `/api/weights/` | GET, POST | Weight entries (admin: all, user: own) |
+| `/api/weights/reminder/` | GET | Legacy: weight log overdue status (prefer `/api/notifications/`) |
 | `/api/weights/{id}/` | GET, PUT, PATCH, DELETE | Weight detail |
+| `/api/notifications/` | GET | Active in-app notifications (synced on list) |
+| `/api/notifications/{id}/` | GET | Notification detail |
+| `/api/notifications/{id}/dismiss/` | POST | Dismiss notification |
+| `/api/notifications/{id}/read/` | POST | Mark notification read |
 | `/api/meal-plans/` | GET, POST | Meal plans (admin: all, user: own) |
 | `/api/meal-plans/{id}/` | GET, PUT, PATCH, DELETE | Meal plan detail |
 | `/api/meal-plans/by-user/{user_id}/compare-meals/` | POST | LLM: resolve plan for user, compare vs logged meals |

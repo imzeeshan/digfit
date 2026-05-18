@@ -5,8 +5,11 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.authtoken.models import Token
 
-from apps.dashboard.meal_plan_llm import resolve_meal_plan_for_user_comparison
-from apps.dashboard.models import MealEntry, MealPlan
+from apps.dashboard.meal_plan_compare import (
+    compare_meal_plan_db,
+    resolve_meal_plan_for_user_comparison,
+)
+from apps.dashboard.models import MealEntry, MealPlan, UserMeal
 
 User = get_user_model()
 
@@ -120,3 +123,79 @@ class ResolveMealPlanForComparisonTests(TestCase):
         plan, reason = resolve_meal_plan_for_user_comparison(self.user)
         self.assertEqual(reason, 'active_window')
         self.assertEqual(plan.pk, dense.pk)
+
+
+class CompareMealPlanDbTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(email='dbcmp@test.com', password='pw')
+        self.token = Token.objects.create(user=self.user)
+        today = timezone.now().date()
+        self.plan = MealPlan.objects.create(
+            user=self.user,
+            title='Test plan',
+            start_date=today,
+            end_date=today + timedelta(days=1),
+            daily_calorie_target=2000,
+        )
+        self.entry_breakfast = MealEntry.objects.create(
+            meal_plan=self.plan,
+            meal_type='breakfast',
+            day_number=1,
+            title='Planned oats',
+            calories=400,
+        )
+        self.entry_lunch = MealEntry.objects.create(
+            meal_plan=self.plan,
+            meal_type='lunch',
+            day_number=1,
+            title='Planned salad',
+            calories=500,
+        )
+        self.logged_lunch = UserMeal.objects.create(
+            user=self.user,
+            meal_type='lunch',
+            title='Actual salad',
+            time_taken=timezone.now().replace(hour=12, minute=30),
+            calories=550,
+        )
+        self.entry_lunch.actual_meal = self.logged_lunch
+        self.entry_lunch.save(update_fields=['actual_meal'])
+        self.extra_snack = UserMeal.objects.create(
+            user=self.user,
+            meal_type='evening_snack',
+            title='Unplanned snack',
+            time_taken=timezone.now().replace(hour=16, minute=0),
+            calories=200,
+        )
+
+    def test_compare_meal_plan_db_structure(self):
+        result = compare_meal_plan_db(self.plan)
+        self.assertEqual(result['compare_mode'], 'db')
+        self.assertEqual(result['summary']['linked_entry_count'], 1)
+        self.assertEqual(result['summary']['missing_log_count'], 1)
+        self.assertEqual(result['summary']['extra_meal_count'], 1)
+        self.assertEqual(len(result['slots']), 2)
+        statuses = {s['planned_title']: s['status'] for s in result['slots']}
+        self.assertEqual(statuses['Planned oats'], 'missing_log')
+        self.assertEqual(statuses['Planned salad'], 'linked')
+        self.assertTrue(any('extra' in i.lower() or '1 meal' in i for i in result['insights']))
+
+    def test_compare_meals_db_api_by_plan_id(self):
+        response = self.client.post(
+            f'/api/meal-plans/{self.plan.pk}/compare-meals-db/',
+            HTTP_AUTHORIZATION=f'Token {self.token.key}',
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['compare_mode'], 'db')
+        self.assertEqual(data['meal_plan_id'], self.plan.pk)
+        self.assertIn('slots', data)
+        self.assertIn('insights', data)
+
+    def test_compare_meals_db_api_by_user_id(self):
+        response = self.client.post(
+            f'/api/meal-plans/by-user/{self.user.pk}/compare-meals-db/',
+            HTTP_AUTHORIZATION=f'Token {self.token.key}',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['compare_mode'], 'db')

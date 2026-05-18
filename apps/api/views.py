@@ -7,10 +7,11 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.routers import APIRootView
 
-from apps.dashboard.meal_plan_llm import (
-    compare_meal_plan_to_logged_meals,
+from apps.dashboard.meal_plan_compare import (
+    compare_meal_plan_db_response_payload,
     resolve_meal_plan_for_user_comparison,
 )
+from apps.dashboard.meal_plan_llm import compare_meal_plan_to_logged_meals
 from apps.dashboard.models import (
     Intervention,
     MealPlan,
@@ -67,6 +68,7 @@ def _meal_plan_compare_response(plan, *, extra=None):
     mp = ctx.get('meal_plan', {})
     return Response(
         {
+            'compare_mode': 'llm',
             'meal_plan_id': plan.pk,
             'meal_plan_title': mp.get('title'),
             'analysis': analysis,
@@ -75,6 +77,11 @@ def _meal_plan_compare_response(plan, *, extra=None):
             **extra,
         }
     )
+
+
+def _meal_plan_compare_db_response(plan, *, extra=None):
+    """Deterministic DB compare (no Ollama)."""
+    return Response(compare_meal_plan_db_response_payload(plan, extra=extra))
 
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
@@ -240,7 +247,8 @@ class MealPlanViewSet(viewsets.ModelViewSet):
         GET /api/meal-plans/by-user/<user_id>/
 
     Compare plan vs logged meals by user (staff: any user; others: own user_id only):
-        POST /api/meal-plans/by-user/<user_id>/compare-meals/
+        POST /api/meal-plans/by-user/<user_id>/compare-meals/       — LLM (Ollama)
+        POST /api/meal-plans/by-user/<user_id>/compare-meals-db/    — deterministic DB
         Picks the plan whose dates include today, else the most recent plan by start_date.
     """
     serializer_class = MealPlanSerializer
@@ -287,6 +295,35 @@ class MealPlanViewSet(viewsets.ModelViewSet):
             extra={'user_id': int(user_id), 'meal_plan_selection': selection},
         )
 
+    @action(
+        detail=False,
+        methods=['post'],
+        url_path=r'by-user/(?P<user_id>\d+)/compare-meals-db',
+        permission_classes=[IsAuthenticated],
+    )
+    def compare_meals_by_user_db(self, request, user_id=None):
+        """DB-only compare: resolved meal plan vs UserMeals in the plan date window."""
+        if not request.user.is_staff and str(request.user.pk) != str(user_id):
+            return Response(
+                {'detail': 'You may only run this comparison for your own user id.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        target = get_object_or_404(User, pk=user_id)
+        plan, selection = resolve_meal_plan_for_user_comparison(target)
+        if plan is None:
+            return Response(
+                {
+                    'detail': 'No meal plan found for this user.',
+                    'error': 'no_meal_plan',
+                    'user_id': int(user_id),
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return _meal_plan_compare_db_response(
+            plan,
+            extra={'user_id': int(user_id), 'meal_plan_selection': selection},
+        )
+
     @action(detail=False, methods=['get'], url_path=r'by-user/(?P<user_id>\d+)',
             permission_classes=[IsAdminUser])
     def by_user(self, request, user_id=None):
@@ -300,6 +337,12 @@ class MealPlanViewSet(viewsets.ModelViewSet):
         """Compare planned meal entries with UserMeals logged in the plan date window (Ollama)."""
         plan = self.get_object()
         return _meal_plan_compare_response(plan)
+
+    @action(detail=True, methods=['post'], url_path='compare-meals-db')
+    def compare_meals_db(self, request, pk=None):
+        """Deterministic DB compare for a specific meal plan (no Ollama)."""
+        plan = self.get_object()
+        return _meal_plan_compare_db_response(plan)
 
 
 class InterventionViewSet(viewsets.ModelViewSet):

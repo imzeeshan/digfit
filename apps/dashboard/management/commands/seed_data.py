@@ -1,99 +1,73 @@
-from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.core.management.base import BaseCommand
+from django.db import connection
+from django.db.utils import ProgrammingError
 
-from apps.dashboard.models import SubscriptionPlan
-
-User = get_user_model()
+from apps.dashboard.management.seeders import (
+    seed_interventions,
+    seed_meal_plans,
+    seed_plans,
+    seed_user_settings,
+    seed_users,
+    seed_weights,
+)
+from apps.dashboard.notifications import sync_user_notifications
 
 
 class Command(BaseCommand):
-    help = 'Seed the database with initial data (admin user + subscription plans)'
+    help = (
+        'Seed the database with demo data (users, plans, weights, meals, interventions). '
+        'Full seed runs by default; pass --minimal for users and plans only.'
+    )
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--minimal',
+            action='store_true',
+            help='Only seed users and subscription plans (legacy behavior).',
+        )
+        parser.add_argument(
+            '--skip-migrate',
+            action='store_true',
+            help='Do not auto-run migrations if tables are missing.',
+        )
+
+    def _ensure_migrated(self, *, skip_migrate: bool) -> None:
+        required = {'accounts_customuser', 'dashboard_subscriptionplan'}
+        existing = set(connection.introspection.table_names())
+        if required.issubset(existing):
+            return
+        if skip_migrate:
+            missing = ', '.join(sorted(required - existing))
+            raise ProgrammingError(
+                f'Database tables are missing ({missing}). Run: python manage.py migrate'
+            )
+        self.stdout.write(self.style.WARNING('Database not migrated — running migrate…'))
+        call_command('migrate', verbosity=1)
 
     def handle(self, *args, **options):
-        # Create admin user
-        user, created = User.objects.get_or_create(
-            email='admin@example.com',
-            defaults={'is_staff': True, 'is_superuser': True, 'name': 'Admin', 'role': 'admin'},
+        minimal = options['minimal']
+        self._ensure_migrated(skip_migrate=options['skip_migrate'])
+
+        users = seed_users(self.stdout, self.style)
+        plans = seed_plans(self.stdout, self.style)
+
+        if minimal:
+            self.stdout.write(self.style.SUCCESS('\nMinimal seed complete (users + plans).'))
+            return
+
+        seed_user_settings(users, plans, self.stdout, self.style)
+        seed_weights(users, self.stdout, self.style)
+        seed_meal_plans(users['user'], self.stdout, self.style)
+        seed_interventions(users['user'], self.stdout, self.style)
+
+        for user in users.values():
+            sync_user_notifications(user)
+
+        self.stdout.write(self.style.SUCCESS('\nFull seed complete!'))
+        self.stdout.write(
+            'Demo logins: admin@example.com / admin123 | '
+            'coach@example.com / coach123 (staff) | '
+            'user@example.com / user1234 | '
+            'client2@example.com / client2123 (trial, weight reminder)',
         )
-        if created:
-            user.set_password('admin123')
-            user.save()
-            self.stdout.write(self.style.SUCCESS('Admin user created (admin@example.com / admin123)'))
-        else:
-            self.stdout.write('Admin user already exists')
-
-        # Create demo coach
-        coach, created = User.objects.get_or_create(
-            email='coach@example.com',
-            defaults={
-                'is_staff': False,
-                'name': 'Demo Coach',
-                'role': 'coach',
-                'metadata': {
-                    'speciality': 'Strength & Conditioning',
-                    'years_of_experience': 5,
-                },
-            },
-        )
-        if created:
-            coach.set_password('coach123')
-            coach.save()
-            self.stdout.write(self.style.SUCCESS('Coach user created (coach@example.com / coach123)'))
-        else:
-            self.stdout.write('Coach user already exists')
-
-        # Create demo regular user
-        regular, created = User.objects.get_or_create(
-            email='user@example.com',
-            defaults={'is_staff': False, 'name': 'Demo User', 'role': 'user'},
-        )
-        if created:
-            regular.set_password('user1234')
-            regular.save()
-            self.stdout.write(self.style.SUCCESS('Regular user created (user@example.com / user1234)'))
-        else:
-            self.stdout.write('Regular user already exists')
-
-        # Create subscription plans
-        plans = [
-            {
-                'name': 'Free',
-                'slug': 'free',
-                'description': 'Get started with the basics',
-                'price': 0,
-                'interval': 'monthly',
-                'features': ['Basic access', 'Community support', '1 project'],
-            },
-            {
-                'name': 'Pro',
-                'slug': 'pro',
-                'description': 'For growing teams and businesses',
-                'price': 9.99,
-                'interval': 'monthly',
-                'features': ['Everything in Free', 'Priority support', 'API access', '10 projects', 'Analytics'],
-            },
-            {
-                'name': 'Enterprise',
-                'slug': 'enterprise',
-                'description': 'For large-scale operations',
-                'price': 49.99,
-                'interval': 'monthly',
-                'features': [
-                    'Everything in Pro',
-                    'Dedicated support',
-                    'Custom integrations',
-                    'Unlimited projects',
-                    'SLA guarantee',
-                ],
-            },
-        ]
-
-        for plan_data in plans:
-            plan, created = SubscriptionPlan.objects.get_or_create(
-                slug=plan_data['slug'],
-                defaults=plan_data,
-            )
-            status = 'created' if created else 'already exists'
-            self.stdout.write(self.style.SUCCESS(f'Plan "{plan.name}" {status}'))
-
-        self.stdout.write(self.style.SUCCESS('\nSeed data complete!'))

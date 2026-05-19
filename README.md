@@ -91,7 +91,7 @@ docker compose up --build
 Wait until the `web` service logs show Gunicorn is ready:
 
 ```text
-Listening at: http://0.0.0.0:8000
+Listening at: http://127.0.0.1:8000
 ```
 
 In a **second terminal**, seed the database (admin user, demo users, subscription plans):
